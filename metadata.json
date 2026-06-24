@@ -1,5 +1,5 @@
 {
-  "name": "ReviewRescue AI",
+  "name": "Rewakely AI",
   "description": "AI-powered reputation manager for small businesses. Generate smart replies to customer reviews, send SMS review requests, and automate feedback collection.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -5,3 +5,31 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
+
+
+/* Global styles for Rewakely */
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+.clickable {
+  cursor: pointer;
+}
+
+button:disabled,
+a:disabled,
+[role="button"]:disabled {
+  cursor: not-allowed;
+}
+
+/* Make text links look more like links */
+.text-link {
+  cursor: pointer;
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}

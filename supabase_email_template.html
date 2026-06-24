@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Welcome to Rewakely!</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8fafc; color: #334155; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        .wrapper { width: 100%; table-layout: fixed; background-color: #f8fafc; padding: 40px 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .header { background: #4f46e5; padding: 32px; text-align: center; }
+        .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        .content { padding: 40px 32px; }
+        .content h2 { margin-top: 0; color: #0f172a; font-size: 20px; font-weight: 800; }
+        .content p { line-height: 1.6; font-size: 14px; margin-bottom: 24px; color: #475569; }
+        .btn-container { text-align: center; margin: 32px 0; }
+        .btn { display: inline-block; background-color: #4f46e5; color: #ffffff !important; font-weight: 700; font-size: 14px; padding: 14px 32px; text-decoration: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); transition: background-color 0.2s; }
+        .btn:hover { background-color: #4338ca; }
+        .divider { border: 0; border-top: 1px solid #f1f5f9; margin: 32px 0; }
+        .footer { text-align: center; padding: 32px; font-size: 12px; color: #94a3b8; line-height: 1.5; background-color: #f8fafc; border-top: 1px solid #e2e8f0; }
+        .fallback { font-size: 11px; color: #94a3b8; word-break: break-all; background-color: #f1f5f9; padding: 12px; border-radius: 8px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h1>🛡️ Rewakely</h1>
+            </div>
+            <div class="content">
+                <h2>Welcome to Rewakely! 🎉</h2>
+                <p>Hello there,</p>
+                <p>Thank you for choosing Rewakely to supercharge your online reputation and auto-pilot your Google My Business review responses.</p>
+                <p>To finalize your setup and activate your account, please click the confirmation button below and access your account!:</p>
+                
+                <div class="btn-container">
+                    <a href="{{ .ConfirmationURL }}" class="btn" target="_blank">Confirm Email Address</a>
+                </div>
+
+                <p>If the button above does not work, simply copy and paste the following web address into your browser window:</p>
+                <div class="fallback">
+                    {{ .ConfirmationURL }}
+                </div>
+                
+                <hr class="divider">
+                
+                <p>Once verified, we'll direct you to your control room where you can link your business profile, customize AI personas, and automate replies in seconds.</p>
+                <p>Warmest regards,<br><strong>The Rewakely Compliance Team</strong></p>
+            </div>
+            <div class="footer">
+                &copy; 2026 Rewakely Inc. All rights reserved.<br>
+                This automated system email is sent to verify account credentials. If you did not initialize this request, please ignore this email.
+            </div>
+        </div>
+    </div>
+</body>
+</html>

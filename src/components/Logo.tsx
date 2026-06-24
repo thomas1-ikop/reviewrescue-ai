@@ -31,9 +31,8 @@ export default function Logo({ className = '', size = 'md' }: LogoProps) {
       </div>
       <div>
         <span className={`tracking-tight font-extrabold ${sizeClasses[size]}`}>
-          Review<span className="text-blue-600">Rescue</span>
-        </span>
-        <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">AI</span>
+  Rewakely
+</span>
       </div>
     </div>
   );
