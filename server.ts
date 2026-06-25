@@ -2492,7 +2492,7 @@ app.get('/api/auth/google', (req, res) => {
     return res.status(400).send('OAuth setup error: GOOGLE_OAUTH_CLIENT_ID is not configured in secrets.');
   }
 
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
   const scope = 'https://www.googleapis.com/auth/business.manage';
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
@@ -2517,7 +2517,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
 
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -2756,7 +2756,7 @@ app.post('/api/google/connect', (req, res) => {
     return res.status(400).json({ error: 'OAuth setup error: GOOGLE_OAUTH_CLIENT_ID is not configured in secrets.' });
   }
 
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/google/callback`;
+  const redirectUri = 'https://rewakely.com/api/google/callback';
   const scope = 'https://www.googleapis.com/auth/business.manage';
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
@@ -2781,7 +2781,7 @@ app.get('/api/google/callback', async (req, res) => {
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/google/callback`;
+  const redirectUri = 'https://rewakely.com/api/google/callback';
 
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
