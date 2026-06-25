@@ -405,38 +405,42 @@ const verificationTokens: Record<string, { userId: string; expiresAt: number }> 
 
 async function sendVerificationEmail(email: string, userId: string, businessName: string) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
 
   verificationTokens[token] = { userId, expiresAt };
 
-  const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/verify?token=${token}`;
+  const verificationLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://rewakely.com'}/api/verify?token=${token}`;
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        from: 'Rewakely <noreply@rewakely.com>',
+        to: [email],
+        subject: 'Confirm your email – Rewakely',
+        html: `
+          <h1>Welcome to Rewakely, ${businessName}!</h1>
+          <p>Please confirm your email address by clicking the link below:</p>
+          <p><a href="${verificationLink}">Confirm my email</a></p>
+          <p>This link expires in 24 hours.</p>
+          <p>If you didn't sign up for Rewakely, you can safely ignore this email.</p>
+          <p>– The Rewakely Team</p>
+        `,
+      }),
     });
 
-    await transporter.sendMail({
-      from: 'contact@rewakely.com',
-      to: email,
-      subject: 'Confirm your email – Rewakely',
-      html: `
-        <h1>Welcome to Rewakely, ${businessName}!</h1>
-        <p>Please confirm your email address by clicking the link below:</p>
-        <p><a href="${verificationLink}">Confirm my email</a></p>
-        <p>This link expires in 24 hours.</p>
-        <p>If you didn't sign up for Rewakely, you can safely ignore this email.</p>
-        <p>– The Rewakely Team</p>
-      `,
-    });
+    const data = await response.json();
 
-    console.log(`Verification email sent to ${email}`);
+    if (!response.ok) {
+      console.error('Resend API error:', data);
+      return { success: false, error: data.message };
+    }
+
+    console.log(`✅ Verification email sent to ${email}`);
     return { success: true };
   } catch (error: any) {
     console.error('Failed to send verification email:', error.message);
@@ -446,31 +450,35 @@ async function sendVerificationEmail(email: string, userId: string, businessName
 
 async function sendWelcomeEmail(email: string, businessName: string) {
   try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        from: 'Rewakely <noreply@rewakely.com>',
+        to: [email],
+        subject: 'Welcome to Rewakely!',
+        html: `
+          <h1>Welcome to Rewakely, ${businessName}!</h1>
+          <p>We're excited to help you manage your online reviews effortlessly.</p>
+          <p>Log in to your dashboard to start importing reviews, sending SMS invites, and setting up auto‑reply for Google.</p>
+          <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://rewakely.com'}">Go to Dashboard</a></p>
+          <p>– The Rewakely Team</p>
+        `,
+      }),
     });
 
-    const info = await transporter.sendMail({
-      from: 'noreply@rewakely.com',
-      to: email,
-      subject: 'Welcome to Rewakely!',
-      html: `
-        <h1>Welcome to Rewakely, ${businessName}!</h1>
-        <p>We're excited to help you manage your online reviews effortlessly.</p>
-        <p>Log in to your dashboard to start importing reviews, sending SMS invites, and setting up auto‑reply for Google.</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard">Go to Dashboard</a></p>
-        <p>– The Rewakely Team</p>
-      `,
-    });
+    const data = await response.json();
 
-    console.log('Welcome email sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    if (!response.ok) {
+      console.error('Resend API error:', data);
+      return { success: false, error: data.message };
+    }
+
+    console.log(`✅ Welcome email sent to ${email}`);
+    return { success: true };
   } catch (error: any) {
     console.error('Failed to send welcome email:', error.message);
     return { success: false, error: error.message };
