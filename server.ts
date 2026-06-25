@@ -130,7 +130,7 @@ function getStripeClient() {
       return null;
     }
     try {
-      stripe = new stripePackage(key, { apiVersion: '2023-10-16' as any });
+      stripe = new stripePackage(key, { apiVersion: '2025-02-24.acacia' as any });
     } catch (err) {
       console.error('Failed to initialize Stripe client:', err);
     }
@@ -1535,66 +1535,94 @@ app.post('/api/stripe/cancel-feedback', async (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/stripe/webhook', async (req, res) => {
-  const sig = req.headers['stripe-signature'];
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
   const stripeClient = getStripeClient();
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!stripeClient || !sig || !endpointSecret) {
-    return res.status(400).send('Webhook config missing or Stripe client disabled');
+    console.error('Webhook config missing');
+    return res.status(400).send('Webhook config missing');
   }
 
   let event;
   try {
-    event = stripeClient.webhooks.constructEvent((req as any).rawBody || JSON.stringify(req.body), sig, endpointSecret);
+    event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error(`Webhook signature verification failed: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as any;
-    const userId = session.metadata?.userId || session.client_reference_id;
-    const plan = session.metadata?.plan || 'pro';
-    const customerId = session.customer;
+  console.log(`✅ Webhook received: ${event.type}`);
 
-    if (userId) {
-      await updateProfile(userId, {
-        subscription_status: 'active',
-        subscription_plan: 'pro',
-        stripe_customer_id: customerId
-      });
-      console.log(`Stripe Webhook: Active plan pro for User ${userId}`);
-    }
-  } else if (event.type === 'customer.subscription.deleted') {
-  const subscription = event.data.object as any;
-  const customerId = subscription.customer;
-  if (customerId) {
-    if (supabaseServiceClient) {
-      const { data: matchedProfiles } = await supabaseServiceClient
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as any;
+      
+      // Use client_reference_id (your userId) – this is the most reliable
+      const userId = session.client_reference_id || session.metadata?.userId;
+      
+      if (!userId) {
+        console.error('❌ No userId found in webhook event');
+        return res.status(400).send('Missing userId');
+      }
+
+      console.log(`🔍 Updating profile for user: ${userId}`);
+
+      // Update the user's profile
+      const { data: updatedProfile, error: updateError } = await supabaseServiceClient
         .from('profiles')
-        .select('id')
-        .eq('stripe_customer_id', customerId);
-      if (matchedProfiles && matchedProfiles.length > 0) {
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        for (const prof of matchedProfiles) {
-          // Update directly using supabaseServiceClient
-          await supabaseServiceClient
-            .from('profiles')
-            .update({
-              subscription_status: 'inactive',
-              subscription_plan: 'starter',
-              subscription_expires_at: expiresAt
-            })
-            .eq('id', prof.id);
-          console.log(`Stripe Webhook: subscription cancelled for user ${prof.id}. Expires at ${expiresAt}`);
+        .update({
+          subscription_status: 'active',
+          subscription_plan: 'pro',
+          stripe_customer_id: session.customer,
+          subscription_expires_at: null,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Database update error:', updateError);
+        return res.status(500).send(`Database error: ${updateError.message}`);
+      }
+
+      console.log(`✅ Profile updated for user ${userId}:`, updatedProfile);
+      res.json({ received: true, updated: true });
+    } 
+    else if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as any;
+      const customerId = subscription.customer;
+      
+      if (customerId) {
+        const { data: matchedProfiles } = await supabaseServiceClient
+          .from('profiles')
+          .select('id')
+          .eq('stripe_customer_id', customerId);
+        
+        if (matchedProfiles && matchedProfiles.length > 0) {
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          for (const prof of matchedProfiles) {
+            await supabaseServiceClient
+              .from('profiles')
+              .update({
+                subscription_status: 'inactive',
+                subscription_plan: 'starter',
+                subscription_expires_at: expiresAt,
+              })
+              .eq('id', prof.id);
+            console.log(`✅ Subscription cancelled for user ${prof.id}, expires at ${expiresAt}`);
+          }
         }
       }
     }
+    
+    res.send({ received: true });
+    
+  } catch (err: any) {
+    console.error('❌ Webhook handler error:', err);
+    res.status(500).send(`Error: ${err.message}`);
   }
-}
-
-  res.send({ received: true });
 });
 
 app.post('/api/google/disconnect', async (req, res) => {
