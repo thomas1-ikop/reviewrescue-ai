@@ -41,6 +41,102 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+
+
+
+// ─── STRIPE WEBHOOK (RAW BODY REQUIRED) ───
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'] as string;
+  const stripeClient = getStripeClient();
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  console.log('🔴 ========== WEBHOOK HIT ==========');
+  console.log('🔴 Signature present?', !!sig);
+  console.log('🔴 Endpoint secret present?', !!endpointSecret);
+  console.log('🔴 Raw body length:', req.body.length);
+
+  if (!stripeClient || !sig || !endpointSecret) {
+    console.error('❌ Webhook config missing');
+    return res.status(400).send('Webhook config missing');
+  }
+
+  let event;
+  try {
+    // ✅ req.body is now the raw Buffer – signature verification will work!
+    event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
+    console.log('✅ Webhook verified! Event type:', event.type);
+  } catch (err: any) {
+    console.error('❌ Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // ─── HANDLE THE EVENT ───
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const userId = session.client_reference_id || session.metadata?.userId;
+      
+      if (!userId) {
+        console.error('❌ No userId found');
+        return res.status(400).send('Missing userId');
+      }
+
+      console.log(`🔴 Updating user ${userId} to active...`);
+
+      const { data: updatedProfile, error: updateError } = await supabaseServiceClient
+        .from('profiles')
+        .update({
+          subscription_status: 'active',
+          subscription_plan: 'pro',
+          stripe_customer_id: session.customer,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Update error:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      console.log('✅ Profile updated:', updatedProfile);
+      return res.json({ received: true, updated: true });
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      
+      if (customerId) {
+        const { data: matchedProfiles } = await supabaseServiceClient
+          .from('profiles')
+          .select('id')
+          .eq('stripe_customer_id', customerId);
+        
+        if (matchedProfiles) {
+          for (const prof of matchedProfiles) {
+            await supabaseServiceClient
+              .from('profiles')
+              .update({
+                subscription_status: 'inactive',
+                subscription_plan: 'starter',
+              })
+              .eq('id', prof.id);
+            console.log(`✅ Subscription cancelled for user ${prof.id}`);
+          }
+        }
+      }
+    }
+
+    res.json({ received: true });
+
+  } catch (err: any) {
+    console.error('❌ Webhook handler error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 app.use(express.json({
   verify: (req: any, res, buf) => {
     req.rawBody = buf;
@@ -1535,97 +1631,6 @@ app.post('/api/stripe/cancel-feedback', async (req, res) => {
   res.json({ success: true });
 });
 
-// ─── STRIPE WEBHOOK (RAW BODY REQUIRED) ───
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'] as string;
-  const stripeClient = getStripeClient();
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  console.log('🔴 ========== WEBHOOK HIT ==========');
-  console.log('🔴 Signature present?', !!sig);
-  console.log('🔴 Endpoint secret present?', !!endpointSecret);
-  console.log('🔴 Raw body length:', req.body.length);
-
-  if (!stripeClient || !sig || !endpointSecret) {
-    console.error('❌ Webhook config missing');
-    return res.status(400).send('Webhook config missing');
-  }
-
-  let event;
-  try {
-    // ✅ req.body is now the raw Buffer – signature verification will work!
-    event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log('✅ Webhook verified! Event type:', event.type);
-  } catch (err: any) {
-    console.error('❌ Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // ─── HANDLE THE EVENT ───
-  try {
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const userId = session.client_reference_id || session.metadata?.userId;
-      
-      if (!userId) {
-        console.error('❌ No userId found');
-        return res.status(400).send('Missing userId');
-      }
-
-      console.log(`🔴 Updating user ${userId} to active...`);
-
-      const { data: updatedProfile, error: updateError } = await supabaseServiceClient
-        .from('profiles')
-        .update({
-          subscription_status: 'active',
-          subscription_plan: 'pro',
-          stripe_customer_id: session.customer,
-        })
-        .eq('id', userId)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-        return res.status(500).json({ error: updateError.message });
-      }
-
-      console.log('✅ Profile updated:', updatedProfile);
-      return res.json({ received: true, updated: true });
-    }
-
-    if (event.type === 'customer.subscription.deleted') {
-      const subscription = event.data.object;
-      const customerId = subscription.customer;
-      
-      if (customerId) {
-        const { data: matchedProfiles } = await supabaseServiceClient
-          .from('profiles')
-          .select('id')
-          .eq('stripe_customer_id', customerId);
-        
-        if (matchedProfiles) {
-          for (const prof of matchedProfiles) {
-            await supabaseServiceClient
-              .from('profiles')
-              .update({
-                subscription_status: 'inactive',
-                subscription_plan: 'starter',
-              })
-              .eq('id', prof.id);
-            console.log(`✅ Subscription cancelled for user ${prof.id}`);
-          }
-        }
-      }
-    }
-
-    res.json({ received: true });
-
-  } catch (err: any) {
-    console.error('❌ Webhook handler error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 app.post('/api/google/disconnect', async (req, res) => {
   const userId = req.headers['x-user-id'] as string;
