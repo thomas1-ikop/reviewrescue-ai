@@ -423,7 +423,7 @@ const CustomerImporterBlock: React.FC<CustomerImporterBlockProps> = ({
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <Sparkles className="w-4 h-4 text-amber-500" />
             }
-            {isParsing ? 'Parsing…' : 'Parse with AI'}
+            {isParsing ? 'Parsing…' : 'Schedual SMS messages'}
           </button>
 
           {/* Preview table */}
