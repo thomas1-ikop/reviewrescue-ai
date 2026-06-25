@@ -181,6 +181,15 @@ const [confirmModal, setConfirmModal] = useState<{
   useEffect(() => {
   // ===== NEW: Restore user from localStorage on page refresh =====
   const storedUser = localStorage.getItem('reviewrescue_user');
+
+
+   // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
+  const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
+  if (publicRoutes.includes(currentRoute)) {
+    return; // Don't auto-login on public pages
+  }
+
+
   if (storedUser) {
     try {
       const parsed = JSON.parse(storedUser);
