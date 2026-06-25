@@ -1540,8 +1540,12 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   const stripeClient = getStripeClient();
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+  console.log('🔍 Webhook received!');
+  console.log('🔍 Signature:', sig ? 'Present' : 'Missing');
+  console.log('🔍 Endpoint Secret:', endpointSecret ? 'Present' : 'Missing');
+
   if (!stripeClient || !sig || !endpointSecret) {
-    console.error('Webhook config missing');
+    console.error('❌ Webhook config missing');
     return res.status(400).send('Webhook config missing');
   }
 
@@ -1549,25 +1553,45 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   try {
     event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err: any) {
-    console.error(`Webhook signature verification failed: ${err.message}`);
+    console.error(`❌ Webhook signature verification failed: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  console.log(`✅ Webhook received: ${event.type}`);
+  console.log(`✅ Webhook verified: ${event.type}`);
 
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
+      console.log('🔍 Session data:', JSON.stringify(session, null, 2));
       
-      // Use client_reference_id (your userId) – this is the most reliable
       const userId = session.client_reference_id || session.metadata?.userId;
-      
+      console.log(`🔍 Extracted userId: ${userId}`);
+
       if (!userId) {
         console.error('❌ No userId found in webhook event');
         return res.status(400).send('Missing userId');
       }
 
-      console.log(`🔍 Updating profile for user: ${userId}`);
+      console.log(`🔍 Attempting to update profile for user: ${userId}`);
+
+      // First, check if the user exists
+      const { data: existingUser, error: fetchError } = await supabaseServiceClient
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) {
+        console.error(`❌ Error fetching user: ${fetchError.message}`);
+        return res.status(500).send(`Fetch error: ${fetchError.message}`);
+      }
+
+      if (!existingUser) {
+        console.error(`❌ User not found with ID: ${userId}`);
+        return res.status(404).send('User not found');
+      }
+
+      console.log(`✅ User found:`, JSON.stringify(existingUser, null, 2));
 
       // Update the user's profile
       const { data: updatedProfile, error: updateError } = await supabaseServiceClient
@@ -1583,16 +1607,17 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
         .single();
 
       if (updateError) {
-        console.error('❌ Database update error:', updateError);
+        console.error(`❌ Database update error: ${updateError.message}`);
         return res.status(500).send(`Database error: ${updateError.message}`);
       }
 
-      console.log(`✅ Profile updated for user ${userId}:`, updatedProfile);
+      console.log(`✅ Profile updated successfully:`, JSON.stringify(updatedProfile, null, 2));
       res.json({ received: true, updated: true });
     } 
     else if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as any;
       const customerId = subscription.customer;
+      console.log(`🔍 Subscription cancelled for customer: ${customerId}`);
       
       if (customerId) {
         const { data: matchedProfiles } = await supabaseServiceClient
@@ -1611,7 +1636,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
                 subscription_expires_at: expiresAt,
               })
               .eq('id', prof.id);
-            console.log(`✅ Subscription cancelled for user ${prof.id}, expires at ${expiresAt}`);
+            console.log(`✅ Subscription cancelled for user ${prof.id}`);
           }
         }
       }
@@ -1620,7 +1645,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
     res.send({ received: true });
     
   } catch (err: any) {
-    console.error('❌ Webhook handler error:', err);
+    console.error(`❌ Webhook handler error:`, err);
     res.status(500).send(`Error: ${err.message}`);
   }
 });
