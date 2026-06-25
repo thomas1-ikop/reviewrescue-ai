@@ -1535,17 +1535,16 @@ app.post('/api/stripe/cancel-feedback', async (req, res) => {
   res.json({ success: true });
 });
 
+// ─── STRIPE WEBHOOK (RAW BODY REQUIRED) ───
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'] as string;
   const stripeClient = getStripeClient();
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  // ─── LOG EVERYTHING ───
   console.log('🔴 ========== WEBHOOK HIT ==========');
-  console.log('🔴 Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('🔴 Body length:', req.body.length);
   console.log('🔴 Signature present?', !!sig);
   console.log('🔴 Endpoint secret present?', !!endpointSecret);
+  console.log('🔴 Raw body length:', req.body.length);
 
   if (!stripeClient || !sig || !endpointSecret) {
     console.error('❌ Webhook config missing');
@@ -1554,6 +1553,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   let event;
   try {
+    // ✅ req.body is now the raw Buffer – signature verification will work!
     event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
     console.log('✅ Webhook verified! Event type:', event.type);
   } catch (err: any) {
@@ -1565,46 +1565,15 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      
-      console.log('🔴 ========== SESSION DATA ==========');
-      console.log('🔴 Session ID:', session.id);
-      console.log('🔴 Customer ID:', session.customer);
-      console.log('🔴 Client Reference ID:', session.client_reference_id);
-      console.log('🔴 Metadata:', session.metadata);
-      console.log('🔴 Payment Status:', session.payment_status);
-
       const userId = session.client_reference_id || session.metadata?.userId;
       
-      console.log('🔴 Extracted userId:', userId);
-
       if (!userId) {
-        console.error('❌ NO USER ID FOUND');
+        console.error('❌ No userId found');
         return res.status(400).send('Missing userId');
       }
 
-      // ─── CHECK IF USER EXISTS ───
-      console.log('🔴 Checking if user exists in Supabase...');
-      const { data: existingUser, error: fetchError } = await supabaseServiceClient
-        .from('profiles')
-        .select('id, email, subscription_status')
-        .eq('id', userId)
-        .single();
+      console.log(`🔴 Updating user ${userId} to active...`);
 
-      if (fetchError) {
-        console.error('❌ Error fetching user:', fetchError);
-        return res.status(500).json({ error: fetchError.message });
-      }
-
-      if (!existingUser) {
-        console.error('❌ USER NOT FOUND with ID:', userId);
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      console.log('🔴 User found:', existingUser);
-
-      // ─── UPDATE THE USER ───
-      console.log('🔴 Attempting to update user...');
-      
       const { data: updatedProfile, error: updateError } = await supabaseServiceClient
         .from('profiles')
         .update({
@@ -1618,11 +1587,10 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
       if (updateError) {
         console.error('❌ Update error:', updateError);
-        console.error('❌ Update error details:', JSON.stringify(updateError, null, 2));
         return res.status(500).json({ error: updateError.message });
       }
 
-      console.log('✅ PROFILE UPDATED SUCCESSFULLY:', updatedProfile);
+      console.log('✅ Profile updated:', updatedProfile);
       return res.json({ received: true, updated: true });
     }
 
@@ -1630,15 +1598,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       const subscription = event.data.object;
       const customerId = subscription.customer;
       
-      console.log('🔴 Subscription cancelled for customer:', customerId);
-      
       if (customerId) {
         const { data: matchedProfiles } = await supabaseServiceClient
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', customerId);
         
-        if (matchedProfiles && matchedProfiles.length > 0) {
+        if (matchedProfiles) {
           for (const prof of matchedProfiles) {
             await supabaseServiceClient
               .from('profiles')
@@ -1657,7 +1623,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   } catch (err: any) {
     console.error('❌ Webhook handler error:', err);
-    console.error('❌ Stack trace:', err.stack);
     res.status(500).json({ error: err.message });
   }
 });
