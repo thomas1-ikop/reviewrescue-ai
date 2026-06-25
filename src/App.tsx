@@ -440,7 +440,7 @@ useEffect(() => {
           triggerToast('Check your email to confirm your account. Confirm the link, then log in.', 'success');
           setAuthBusinessName('');
           setAuthPassword('');
-          setAuthError('Check your email to confirm your account. Once verified, you may sign in below.');
+          setAuthError('Check your email to confirm your account. Once verified, you may sign in below. It could take up to 1 minute to send. Check your spam folder.');
           setCurrentRoute('signin');
           return;
         }

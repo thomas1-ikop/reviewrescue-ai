@@ -457,7 +457,7 @@ async function sendWelcomeEmail(email: string, businessName: string) {
     });
 
     const info = await transporter.sendMail({
-      from: 'contact@rewakely.com',
+      from: 'noreply@rewakely.com',
       to: email,
       subject: 'Welcome to Rewakely!',
       html: `
