@@ -169,10 +169,43 @@ export default function TermsOfService() {
               We may update these Terms from time to time. We will notify you of any material changes by email or by posting a notice on the Service. Your continued use of the Service constitutes acceptance of the updated Terms.
             </p>
 
-            <h2 className="text-lg font-bold text-slate-900 mt-6">16. Contact Us</h2>
+           
+
+<h2 className="text-lg font-bold text-slate-900 mt-6">17. SMS Messaging Service</h2>
+
+<p>
+  By using Rewakely's SMS review invitation service, you agree to the following terms:
+</p>
+
+<ul className="list-disc pl-6 space-y-1">
+  <li>
+    <strong>Consent:</strong> You confirm that you have obtained explicit consent from your customers to send them SMS messages through our platform.
+  </li>
+  <li>
+    <strong>Compliance:</strong> You are responsible for complying with all applicable SMS and marketing regulations, including but not limited to the Telephone Consumer Protection Act (TCPA) and the CAN-SPAM Act.
+  </li>
+  <li>
+    <strong>Opt-Out:</strong> You agree that all SMS messages sent through Rewakely will include clear opt-out instructions (e.g., "Reply STOP to opt out").
+  </li>
+  <li>
+    <strong>Liability:</strong> You are solely responsible for ensuring that your customer data is collected and used in compliance with all applicable laws. Rewakely is not liable for any misuse of customer data by you or your business.
+  </li>
+  <li>
+    <strong>Data Processing:</strong> Rewakely processes phone numbers solely for the purpose of delivering SMS review invitations on your behalf.
+  </li>
+</ul>
+
+ <h2 className="text-lg font-bold text-slate-900 mt-6">16. Contact Us</h2>
             <p>
               If you have any questions about these Terms, please contact us at <strong>contact@rewakely.com</strong>.
             </p>
+
+<p className="mt-4">
+  By using the SMS service, you acknowledge and accept these terms.
+</p>
+
+
+
           </div>
         </div>
       </div>

@@ -128,10 +128,37 @@ export default function PrivacyPolicy() {
               We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.
             </p>
 
-            <h2 className="text-lg font-bold text-slate-900 mt-6">11. Contact Us</h2>
+         
+
+<h2 className="text-lg font-bold text-slate-900 mt-6">12. SMS Communications</h2>
+
+<p>
+  When you use Rewakely to send SMS review invites to your customers, we process phone numbers solely for the purpose of delivering those invitations.
+</p>
+
+<h3 className="font-semibold text-slate-900 mt-4">What We Do With Phone Numbers:</h3>
+<ul className="list-disc pl-6 space-y-1">
+  <li><strong>Usage:</strong> Phone numbers are used exclusively to send SMS review invitations on your behalf.</li>
+  <li><strong>Sharing:</strong> We do not share, sell, or rent phone numbers to third parties.</li>
+  <li><strong>Storage:</strong> Phone numbers are stored securely and encrypted.</li>
+  <li><strong>Retention:</strong> Phone numbers are retained only as long as necessary to deliver the SMS service and for compliance purposes.</li>
+</ul>
+
+<h3 className="font-semibold text-slate-900 mt-4">Your Responsibility:</h3>
+<p>
+  You are responsible for obtaining proper consent from your customers before sending SMS messages through Rewakely. We recommend including an opt-in checkbox on your customer intake forms and providing clear opt-out instructions in all SMS communications.
+</p>
+
+<h3 className="font-semibold text-slate-900 mt-4">Opt-Out:</h3>
+<p>
+  All SMS messages sent through Rewakely include instructions for recipients to opt out by replying "STOP." We respect all opt-out requests and will not send further messages to opted-out numbers.
+</p>
+
+   <h2 className="text-lg font-bold text-slate-900 mt-6">11. Contact Us</h2>
             <p>
               If you have any questions about this Privacy Policy, please contact us at <strong>contact.rescuereview@gmail.com</strong>.
             </p>
+
           </div>
         </div>
       </div>
