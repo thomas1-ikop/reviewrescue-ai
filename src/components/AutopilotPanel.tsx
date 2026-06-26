@@ -15,6 +15,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { Profile } from '../types';
+import DisconnectModal from './DisconnectModal';
 
 interface AutopilotLog {
   id: string;
@@ -44,6 +45,9 @@ export default function AutopilotPanel({ profile, onProfileUpdated }: AutopilotP
   const [gmbConnected, setGmbConnected] = useState(false);
   const [locationName, setLocationName] = useState<string | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(true);
+
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   // States for unresolved Google Negative reviews
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
@@ -93,22 +97,33 @@ export default function AutopilotPanel({ profile, onProfileUpdated }: AutopilotP
     window.addEventListener('message', messageListener);
   };
 
-  // Disconnect handler
-  const handleDisconnect = async () => {
-    if (!confirm('Are you sure you want to disconnect your Google Business Profile? This will stop auto-reply.')) return;
-    try {
-      await fetch('/api/google/disconnect', {
-        method: 'POST',
-        headers: { 'x-user-id': profile.id }
-      });
+  // ─── DISCONNECT HANDLERS ──────────────────────────────────────
+const handleDisconnectClick = () => {
+  setShowDisconnectModal(true);
+};
+
+const handleDisconnectConfirm = async () => {
+  setIsDisconnecting(true);
+  try {
+    const response = await fetch('/api/google/disconnect', {
+      method: 'POST',
+      headers: { 'x-user-id': profile.id }
+    });
+    if (response.ok) {
       setGmbConnected(false);
       setLocationName(null);
-      alert('Google Business Profile disconnected.');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to disconnect.');
+      // Refresh stats after disconnect
+      fetchStatsAndLogs();
+    } else {
+      console.error('Disconnect failed');
     }
-  };
+  } catch (err) {
+    console.error('Error disconnecting:', err);
+  } finally {
+    setIsDisconnecting(false);
+    setShowDisconnectModal(false);
+  }
+};
 
   const fetchStatsAndLogs = async () => {
     setIsLoadingLogs(true);
@@ -434,7 +449,7 @@ export default function AutopilotPanel({ profile, onProfileUpdated }: AutopilotP
           </button>
           {gmbConnected && (
             <button
-              onClick={handleDisconnect}
+              onClick={handleDisconnectClick}
               className="w-full md:w-auto inline-flex items-center justify-center px-5 py-3 rounded-xl text-xs font-black transition-all border border-red-300 hover:bg-red-50 text-red-600 shadow-sm active:scale-95"
             >
               Disconnect
@@ -483,6 +498,14 @@ export default function AutopilotPanel({ profile, onProfileUpdated }: AutopilotP
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Manual Check</span>
             <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[9px] font-mono font-bold uppercase">Ready</span>
           </div>
+
+          {/* ─── DISCONNECT MODAL ─── */}
+<DisconnectModal
+  isOpen={showDisconnectModal}
+  onClose={() => setShowDisconnectModal(false)}
+  onConfirm={handleDisconnectConfirm}
+  isDisconnecting={isDisconnecting}
+/>
 
           <div className="space-y-2">
             <button
