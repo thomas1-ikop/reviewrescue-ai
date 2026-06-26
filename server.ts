@@ -365,10 +365,12 @@ async function getReviews(userId: string) {
 }
 
 async function insertReview(review: any) {
-  if (!supabaseClient) {
-    throw new Error('Supabase client is not initialized or credentials are missing.');
+  // Use service role client to bypass RLS
+  const client = supabaseServiceClient || supabaseClient;
+  if (!client) {
+    throw new Error('No Supabase client available.');
   }
-  const { data, error } = await supabaseClient
+  const { data, error } = await client
     .from('reviews')
     .insert([review])
     .select();

@@ -39,7 +39,7 @@ export default function OnboardingTour({ userId, onComplete, onStepChange }: Onb
     },
     {
       id: 'support',
-      title: 'Questions & Comments',
+      title: 'Help & Support',
       description: 'Have a question or want to share feedback? Use this tab to contact us directly or submit your thoughts. We\'re here to help!',
     },
     {

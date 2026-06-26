@@ -1300,7 +1300,7 @@ if (currentRoute === 'reset-password') {
 
               <div className="space-y-1">
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                  {currentRoute === 'signup' ? 'Claim Your Brand Space' : 'Access Merchant Portal'}
+                  {currentRoute === 'signup' ? 'Sign Up' : 'Log in'}
                 </h2>
                 <p className="text-xs text-slate-400 leading-normal max-w-sm">
                   {currentRoute === 'signup' 
