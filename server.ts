@@ -583,6 +583,126 @@ async function sendWelcomeEmail(email: string, businessName: string) {
   }
 }
 
+
+
+// ─── PASSWORD RESET (USING RESEND API DIRECTLY) ──────────────────
+app.post('/api/auth/reset-password-request', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  console.log(`🔴 Password reset requested for: ${email}`);
+
+  try {
+    // 1. Get user from Supabase Auth using listUsers with filter
+    const { data: { users }, error: usersError } = await supabaseServiceClient.auth.admin.listUsers();
+    
+    if (usersError) {
+      console.error('listUsers error:', usersError);
+      return res.status(500).json({ error: 'Failed to lookup user' });
+    }
+
+    const user = users?.find((u: any) => u.email === email);
+
+    if (!user) {
+      console.log('User not found in auth');
+      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+    }
+
+    console.log(`User found: ${user.id}`);
+
+    // 2. Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    // 3. Save token to password_reset_tokens
+    const { error: tokenError } = await supabaseServiceClient
+      .from('password_reset_tokens')
+      .insert([{
+        user_id: user.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+        used: false
+      }]);
+
+    if (tokenError) {
+      console.error('Token save error:', tokenError);
+      return res.status(500).json({ error: 'Failed to generate reset link' });
+    }
+
+    // 4. Send email via Resend API
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    const result = await sendPasswordResetEmail(email, resetLink);
+
+    if (!result.success) {
+      console.error('Email send failed:', result.error);
+      return res.status(500).json({ error: 'Failed to send reset email' });
+    }
+
+    console.log(`✅ Password reset email sent to ${email}`);
+    res.json({ success: true, message: 'Password reset link sent to your email.' });
+
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    // Verify the token
+    const { data: tokenData, error: tokenError } = await supabaseServiceClient
+      .from('password_reset_tokens')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (tokenError || !tokenData) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Update the user's password
+    const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
+      tokenData.user_id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('Password update error:', updateError);
+      return res.status(500).json({ error: 'Failed to update password' });
+    }
+
+    // Mark token as used
+    await supabaseServiceClient
+      .from('password_reset_tokens')
+      .update({ used: true })
+      .eq('token', token);
+
+    res.json({ success: true, message: 'Password updated successfully!' });
+
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 // -------------------- API ENDPOINTS --------------------
 app.get('/api/test-email', async (req, res) => {
   try {
@@ -818,6 +938,44 @@ app.get('/api/verify', async (req, res) => {
     </html>
   `);
 });
+
+// ─── SEND PASSWORD RESET EMAIL ──────────────────────────────────
+async function sendPasswordResetEmail(email: string, resetLink: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Rewakely <onboarding@resend.dev>', // change to noreply@rewakely.com after testing
+        to: [email],
+        subject: 'Reset Your Password – Rewakely',
+        html: `
+          <h1>Reset Your Password</h1>
+          <p>Click the link below to reset your password. This link expires in 1 hour.</p>
+          <p><a href="${resetLink}">Reset Password</a></p>
+          <p>If you didn't request this, you can safely ignore this email.</p>
+          <p>– The Rewakely Team</p>
+        `,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Resend API error:', data);
+      return { success: false, error: data.message || 'Failed to send reset email' };
+    }
+
+    console.log(`Password reset email sent to ${email}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to send password reset email:', error.message);
+    return { success: false, error: error.message };
+  }
+}
 
 app.post('/api/user/onboarding', async (req, res) => {
   const { userId, businessName, industry, tone } = req.body;

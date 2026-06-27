@@ -12,76 +12,103 @@ const ResetPasswordView: React.FC = () => {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [resetToken, setResetToken] = useState<string | null>(null);
 
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      const params = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
-      const accessToken = params.get('access_token');
-      const type = params.get('type');
-      if (accessToken && type === 'recovery') {
-        setResetToken(accessToken);
-        setMode('reset');
-        window.history.replaceState(null, '', '/reset-password');
-      }
-    }
-  }, []);
+  // In ResetPasswordView.tsx, update the useEffect to check for token in URL
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (token) {
+    setResetToken(token);
+    setMode('reset');
+  }
+}, []);
 
-  const handleRequestReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setMessage({ text: 'Please enter your email address.', type: 'error' });
-      return;
-    }
+  
+  
+const handleRequestReset = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!email.trim()) {
+    setMessage({ text: 'Please enter your email address.', type: 'error' });
+    return;
+  }
 
-    setLoading(true);
-    setMessage(null);
+  setLoading(true);
+  setMessage(null);
 
-    try {
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      setMode('success');
-      setMessage({
-        text: `Password reset email sent to ${email}. Check your inbox (and spam folder).`,
-        type: 'success',
-      });
-    } catch (err: any) {
-      setMessage({ text: err.message || 'Failed to send reset email. Please try again.', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await fetch('/api/auth/reset-password-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+    const data = await response.json();
 
-    if (newPassword.length < 6) {
-      setMessage({ text: 'Password must be at least 6 characters.', type: 'error' });
-      return;
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to send reset email');
     }
 
-    if (newPassword !== confirmPassword) {
-      setMessage({ text: 'Passwords do not match.', type: 'error' });
-      return;
+    setMode('success');
+    setMessage({
+      text: `Password reset email sent to ${email}. Check your inbox (and spam folder).`,
+      type: 'success',
+    });
+  } catch (err: any) {
+    setMessage({ text: err.message || 'Failed to send reset email. Please try again.', type: 'error' });
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleResetPassword = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  if (newPassword.length < 6) {
+    setMessage({ text: 'Password must be at least 6 characters.', type: 'error' });
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setMessage({ text: 'Passwords do not match.', type: 'error' });
+    return;
+  }
+
+  setLoading(true);
+  setMessage(null);
+
+  // Get the token from the URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+
+  if (!token) {
+    setMessage({ text: 'Invalid reset link. Please request a new one.', type: 'error' });
+    setLoading(false);
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to reset password');
     }
 
-    setLoading(true);
-    setMessage(null);
+    setMessage({ text: 'Password updated successfully! You can now log in.', type: 'success' });
+    setTimeout(() => {
+      window.location.href = '/#currentRoute=signin';
+    }, 2500);
+  } catch (err: any) {
+    setMessage({ text: err.message || 'Failed to reset password. Please try again.', type: 'error' });
+  } finally {
+    setLoading(false);
+  }
+};
 
-    try {
-      const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setMessage({ text: 'Password updated successfully! You can now log in.', type: 'success' });
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 2500);
-    } catch (err: any) {
-      setMessage({ text: err.message || 'Failed to update password. Please try again.', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">

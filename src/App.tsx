@@ -46,6 +46,9 @@ export default function App() {
   if (path === '/terms') {
     return 'terms';
   }
+   if (path === '/reset-password') {
+    return 'reset-password';
+  }
   return 'landing';
 });
   const [currency, setCurrency] = useState<'USD' | 'EUR'>('USD');
