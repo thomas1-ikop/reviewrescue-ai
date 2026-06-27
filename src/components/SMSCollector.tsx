@@ -103,15 +103,19 @@ const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour 
     </p>
   </div>
   {/* ─── HELP BUTTON ─────────────────────────────── */}
-  {onStartTour && (
-    <button
-      onClick={onStartTour}
-      className="p-2 rounded-full hover:bg-slate-100 transition border border-slate-200"
-      title="Start tour"
-    >
-      <HelpCircle className="w-5 h-5 text-slate-500" />
-    </button>
-  )}
+  {/* ─── HELP BUTTON ─────────────────────────────── */}
+{onStartTour && (
+  <button
+    onClick={onStartTour}
+    className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-slate-100 transition border border-slate-200 group"
+    title="Start tour"
+  >
+    <HelpCircle className="w-4 h-4 text-slate-500 group-hover:text-slate-700 transition" />
+    <span className="text-xs font-medium text-slate-500 group-hover:text-slate-700 transition whitespace-nowrap">
+      How it works
+    </span>
+  </button>
+)}
 </div>
 
       

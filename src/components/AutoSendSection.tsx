@@ -153,7 +153,7 @@ const ControlsStatsBlock: React.FC<ControlsStatsBlockProps> = ({
   };
 
   return (
-    <div className="flex flex-wrap gap-5 mb-5">
+    <div className="flex flex-wrap gap-5 mb-5 controls-stats-block">
       {/* Left: toggle + delay + next-send */}
       <div className="flex flex-col gap-3 flex-1 min-w-[200px]">
         {/* Toggle */}

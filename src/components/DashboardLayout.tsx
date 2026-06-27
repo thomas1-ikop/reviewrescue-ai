@@ -78,6 +78,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             return (
               <button
                 key={item.id}
+                id={`tour-sidebar-${item.id}`}  // ← ADD THIS LINE
                 onClick={() => setCurrentRoute(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
                   isActive

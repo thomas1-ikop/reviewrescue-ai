@@ -13,6 +13,7 @@ import {
 
 import Logo from './components/Logo';
 import PricingCards from './components/PricingCards';
+import SmsTour from './components/SmsTour';
 import OnboardingModal from './components/OnboardingModal';
 import ReviewsView from './components/ReviewsView';
 import SMSCollector from './components/SMSCollector';
@@ -63,6 +64,7 @@ export default function App() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [showSmsTour, setShowSmsTour] = useState(false);
+
   
   // Logged-in User Context
   const [user, setUser] = useState<Profile | null>(null);
@@ -1164,6 +1166,51 @@ if (currentRoute === 'reset-password') {
       </div>
     </section>
 
+    {/* ─── SOCIAL PROOF ────────────────────────────────────────── */}
+<section className="py-16 px-6 bg-slate-50 border-y border-slate-150">
+  <div className="max-w-6xl mx-auto">
+    <h2 className="text-2xl font-bold text-slate-900 text-center mb-12">
+      Trusted by Business Owners Like You
+    </h2>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+  <div>
+    <p className="text-3xl font-black text-blue-600">2 Seconds</p>
+    <p className="text-sm text-slate-500 mt-1">AI Reply Generation</p>
+  </div>
+  <div>
+    <p className="text-3xl font-black text-blue-600">Unlimited</p>
+    <p className="text-sm text-slate-500 mt-1">AI Replies Included</p>
+  </div>
+  <div>
+    <p className="text-3xl font-black text-blue-600">Save Hours</p>
+    <p className="text-sm text-slate-500 mt-1">Weekly With Automation</p>
+  </div>
+</div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <p className="text-sm text-slate-600 italic leading-relaxed">
+          "What used to take hours now takes seconds. Rewakely is a game‑changer."
+        </p>
+        <p className="text-xs font-bold text-slate-800 mt-3">— Mike, HVAC Contractor</p>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <p className="text-sm text-slate-600 italic leading-relaxed">
+          "The SMS feature is a game‑changer. We get 5‑star reviews without even asking."
+        </p>
+        <p className="text-xs font-bold text-slate-800 mt-3">— Sarah, Dental Practice</p>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+        <p className="text-sm text-slate-600 italic leading-relaxed">
+          "Auto‑reply to Google reviews is my favorite feature. I never miss a review now."
+        </p>
+        <p className="text-xs font-bold text-slate-800 mt-3">— John, Roofing Company</p>
+      </div>
+    </div>
+  </div>
+</section>
+
     {/* Pricing cards columns */}
     <section id="pricing" className="py-20 px-6 max-w-7xl w-full mx-auto">
       <div className="text-center space-y-4 mb-16">
@@ -1516,8 +1563,24 @@ if (currentRoute === 'reset-password') {
         
         {/* 2. SMS Tab */}
         {currentRoute === 'sms' && (
-          <SMSCollector userId={user?.id} toast={triggerToast} />
-        )}
+  <>
+    <SMSCollector 
+      userId={user?.id} 
+      toast={triggerToast} 
+      onStartTour={() => setShowSmsTour(true)}
+    />
+    {showSmsTour && (
+      <SmsTour
+        isOpen={showSmsTour}
+        onComplete={() => {
+          setShowSmsTour(false);
+          triggerToast('✅ SMS Tour complete! You\'re ready to start collecting reviews.', 'success');
+        }}
+        onSkip={() => setShowSmsTour(false)}
+      />
+    )}
+  </>
+)}
         
         {/* 3. Auto-Reply */}
         {currentRoute === 'autopilot' && (
