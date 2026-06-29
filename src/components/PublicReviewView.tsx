@@ -9,7 +9,8 @@ import {
   Frown, 
   MessageSquare,
   AlertCircle,
-  Loader2
+  Loader2,
+  MapPin
 } from 'lucide-react';
 
 interface BusinessData {
@@ -73,7 +74,6 @@ export default function PublicReviewView() {
   const handleSelectRating = async (selectedRating: number) => {
     if (isSubmitted || isSubmitting) return;
 
-    // Validate customer name
     if (!customerName.trim()) {
       setErrorMsg('Please enter your name before submitting.');
       return;
@@ -96,13 +96,13 @@ export default function PublicReviewView() {
           rating: selectedRating,
           place_id: placeId,
           customer_name: customerName.trim(),
-          business_id: businessId
+          business_id: businessId,
         }),
       });
 
       const data = await res.json();
 
-      // ─── DUPLICATE REVIEW ────────────────────────────────────
+      // Duplicate check
       if (res.status === 409 && data.error === 'already_reviewed') {
         setDuplicateMessage(
           data.message || `You've already shared your feedback with ${businessName}. Thank you for your support!`
@@ -111,12 +111,10 @@ export default function PublicReviewView() {
         return;
       }
 
-      // ─── OTHER ERRORS ─────────────────────────────────────────
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit feedback');
       }
 
-      // ─── SUCCESS ──────────────────────────────────────────────
       setIsSubmitted(true);
     } catch (err: any) {
       console.error('Error submitting feedback:', err);
@@ -127,7 +125,6 @@ export default function PublicReviewView() {
     }
   };
 
-  // ─── RETRY ──────────────────────────────────────────────────────
   const handleRetry = () => {
     setIsSubmitted(false);
     setErrorMsg(null);
@@ -135,7 +132,7 @@ export default function PublicReviewView() {
     setRating(null);
   };
 
-  // ─── LOADING STATE ──────────────────────────────────────────────
+  // ─── LOADING ──────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -147,7 +144,7 @@ export default function PublicReviewView() {
     );
   }
 
-  // ─── ERROR STATE ─────────────────────────────────────────────────
+  // ─── ERROR ───────────────────────────────────────────────────────
   if (errorMsg && !isSubmitted) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -182,9 +179,7 @@ export default function PublicReviewView() {
             </div>
             <h2 className="text-xl font-bold text-slate-900">Already Reviewed!</h2>
             <p className="text-sm text-slate-500 mt-2">{duplicateMessage}</p>
-            <p className="text-xs text-slate-400 mt-4">
-              Thank you for being a valued customer.
-            </p>
+            <p className="text-xs text-slate-400 mt-4">Thank you for being a valued customer.</p>
           </div>
         </div>
       </div>
@@ -194,9 +189,11 @@ export default function PublicReviewView() {
   // ─── SUCCESS STATE ──────────────────────────────────────────────
   if (isSubmitted && rating !== null) {
     const isPositive = rating >= 4;
+    
+    // Build the Google Maps review link
     const googleReviewLink = placeId
       ? `https://search.google.com/local/writereview?placeid=${placeId}`
-      : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review`;
+      : null;
 
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -204,6 +201,7 @@ export default function PublicReviewView() {
           <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
           
           <div className="p-8 space-y-5">
+            {/* Header */}
             <div className="text-center">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
                 {isPositive ? (
@@ -215,48 +213,80 @@ export default function PublicReviewView() {
               <h2 className="text-xl font-bold text-slate-900">
                 Thank you, {customerName.trim() || 'valued customer'}!
               </h2>
+              <div className="flex items-center justify-center gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={20}
+                    fill={star <= rating ? '#EAB308' : 'none'}
+                    className={star <= rating ? 'text-yellow-500' : 'text-slate-300'}
+                  />
+                ))}
+              </div>
               <p className="text-sm text-slate-500 mt-1">
-                You rated {businessName} <span className="font-bold text-yellow-500">{rating} stars</span>
+                You rated {businessName} {rating} stars
               </p>
             </div>
 
             <div className="border-t border-slate-100 pt-4">
               {isPositive ? (
+                // ─── 4-5 STARS: Google Maps Review Link ────────────────
                 <div className="space-y-3">
-                  <p className="text-sm text-slate-600 text-center">
-                    Would you mind sharing your experience publicly on Google?
-                  </p>
-                  <a
-                    href={googleReviewLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold"
-                  >
-                    <Star className="w-4 h-4 fill-current" />
-                    Write a Google Review
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                  <p className="text-[10px] text-slate-400 text-center">
-                    This will open Google Maps where you can leave your review.
-                  </p>
+                  {googleReviewLink ? (
+                    <>
+                      <p className="text-sm text-slate-600 text-center">
+                        ⭐ You had a great experience! Would you mind sharing it publicly on Google Maps?
+                      </p>
+                      <a
+                        href={googleReviewLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-blue-100"
+                      >
+                        <MapPin className="w-4 h-4" />
+                        Write a Review on Google Maps
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <p className="text-[10px] text-slate-400 text-center">
+                        This will open Google Maps where you can leave your review
+                      </p>
+                    </>
+                  ) : (
+                    // Fallback if no place_id
+                    <div className="text-center">
+                      <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-xl">
+                        ⚠️ This business hasn't set up their Google Maps link yet.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-2">
+                        Please search for {businessName} on Google Maps to leave your review.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
+                // ─── 1-3 STARS: Contact Information ─────────────────────
                 <div className="space-y-3">
                   <p className="text-sm text-slate-600 text-center">
-                    We apologize that your experience wasn't perfect. Please contact us directly so we can make it right.
+                    We're sorry your experience wasn't perfect. Please contact the business directly so they can make it right.
                   </p>
+                  
                   {contactEmail ? (
                     <a
                       href={`mailto:${contactEmail}?subject=Feedback about my experience at ${encodeURIComponent(businessName)}`}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 transition text-white rounded-xl text-sm font-semibold"
+                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-slate-100"
                     >
                       <Mail className="w-4 h-4" />
-                      Contact Us
+                      Contact the Owner
                     </a>
                   ) : (
-                    <p className="text-sm text-slate-400 text-center italic">
-                      Our team will reach out to address your concerns.
-                    </p>
+                    <div className="text-center p-4 bg-slate-50 rounded-xl">
+                      <p className="text-sm text-slate-500">
+                        📧 The business owner will reach out to you directly to address your concerns.
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Please expect a response within 1-2 business days.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -278,7 +308,7 @@ export default function PublicReviewView() {
         <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600" />
 
         <div className="p-6 md:p-8 space-y-6">
-          {/* ─── HEADER ──────────────────────────────────────────── */}
+          {/* Header */}
           <div className="text-center space-y-2">
             <span className="inline-block p-2.5 rounded-full bg-indigo-50 text-indigo-600 mb-2">
               <MessageSquare size={24} className="animate-pulse" style={{ animationDuration: '3s' }} />
@@ -292,7 +322,7 @@ export default function PublicReviewView() {
             </p>
           </div>
 
-          {/* ─── FORM ────────────────────────────────────────────── */}
+          {/* Form */}
           <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl">
             {/* Name input */}
             <div className="mb-4">
@@ -350,7 +380,6 @@ export default function PublicReviewView() {
               </div>
             )}
 
-            {/* Error message */}
             {errorMsg && (
               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs text-center">
                 <AlertCircle className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
@@ -359,7 +388,7 @@ export default function PublicReviewView() {
             )}
           </div>
 
-          {/* ─── FOOTER ───────────────────────────────────────────── */}
+          {/* Footer */}
           <div className="text-center text-[10px] text-slate-400 flex items-center justify-center gap-1.5 border-t border-slate-100 pt-4">
             <span className="font-semibold">{businessName} verified feedback channel</span>
             <span>&bull;</span>
