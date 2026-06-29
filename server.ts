@@ -1317,7 +1317,7 @@ if (token) {
 } else {
   // ⚠️ Fallback – long link (shouldn't happen if DB is working)
   console.warn('Token generation failed – using fallback long URL');
-  reviewLink = `https://rewakely.com/review?business=${encodeURIComponent(business)}&placeId=${encodeURIComponent(placeId)}&email=${encodeURIComponent(contactEmail)}&customerName=${encodeURIComponent(customerName)}`;
+  reviewLink = `https://rewakely.com/review?business=${userId}&placeId=${encodeURIComponent(placeId)}&email=${encodeURIComponent(contactEmail)}&customerName=${encodeURIComponent(customerName)}`;
 }
 
 const customMessage = `Hi ${customerName}, ${business} values your feedback. Please review: ${reviewLink}. If you didn't visit, please ignore.`;
@@ -1721,6 +1721,37 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
   }
 });
 
+
+
+// ─── GENERATE TOKEN FOR QR CODE ──────────────────────────────────
+app.post('/api/sms/generate-token', authenticate, async (req, res) => {
+  const userId = req.userId;
+  const { placeId, contactEmail, customerName, businessName } = req.body;
+
+  if (!placeId || !contactEmail) {
+    return res.status(400).json({ error: 'placeId and contactEmail are required' });
+  }
+
+  try {
+    // Get the user's business name
+    const { data: profile } = await getProfile(userId);
+    const business = businessName || profile.business_name || 'Our Business';
+
+    // Generate a token
+    const token = await generateReviewToken(placeId, contactEmail, customerName || 'Customer', business);
+
+    if (!token) {
+      return res.status(500).json({ error: 'Failed to generate token' });
+    }
+
+    res.json({ token });
+  } catch (err: any) {
+    console.error('Token generation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 app.post('/api/stripe/portal', async (req, res) => {
   const { customerId, userId } = req.body;
   const stripeClient = getStripeClient();
@@ -2000,11 +2031,7 @@ app.post('/api/feedback/submit', async (req, res) => {
   const determinedIp = clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const finalIp = Array.isArray(determinedIp) ? determinedIp[0] : determinedIp;
 
-  let insertedRecord = null;
-  let savedToDb = false;
   let userId = null;
-
-  // ✅ NEW: Look up the user_id from the place_id
   if (place_id && supabaseServiceClient) {
     try {
       const { data: profile } = await supabaseServiceClient
@@ -2014,14 +2041,39 @@ app.post('/api/feedback/submit', async (req, res) => {
         .maybeSingle();
       if (profile) {
         userId = profile.id;
-        console.log(`Found user_id ${userId} for place_id ${place_id}`);
-      } else {
-        console.log(`No profile found for place_id ${place_id}`);
       }
     } catch (err) {
       console.warn('Error looking up place_id:', err);
     }
   }
+
+  // ✅ DUPLICATE CHECK: if userId and customer_name exist, check for existing submission
+  if (userId && customer_name) {
+    const { data: existing, error: checkError } = await supabaseServiceClient
+      .from('feedback_submissions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('customer_name', customer_name)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Duplicate check error:', checkError);
+      // Continue anyway – we'll let the unique constraint catch it
+    }
+
+    if (existing) {
+      // Already reviewed – return a friendly message
+      return res.status(409).json({
+        success: false,
+        error: 'already_reviewed',
+        message: `You've already shared your feedback with ${business_name}. Thank you for your support!`
+      });
+    }
+  }
+
+  // ─── SAVE TO DATABASE ──────────────────────────────────────────
+  let insertedRecord = null;
+  let savedToDb = false;
 
   if (supabaseServiceClient) {
     try {
@@ -2032,13 +2084,8 @@ app.post('/api/feedback/submit', async (req, res) => {
         created_at: new Date().toISOString()
       };
 
-      // Only add user_id if we found one
-      if (userId) {
-        insertData.user_id = userId;
-      }
-      if (customer_name) {
-        insertData.customer_name = customer_name;
-      }
+      if (userId) insertData.user_id = userId;
+      if (customer_name) insertData.customer_name = customer_name;
 
       const { data, error } = await supabaseServiceClient
         .from('feedback_submissions')
@@ -2050,9 +2097,27 @@ app.post('/api/feedback/submit', async (req, res) => {
         savedToDb = true;
       } else {
         console.warn('Supabase feedback insert warning:', error?.message);
+        // If it's a unique violation (duplicate), return friendly error
+        if (error?.code === '23505') { // unique violation
+          return res.status(409).json({
+            success: false,
+            error: 'already_reviewed',
+            message: `You've already shared your feedback with ${business_name}. Thank you!`
+          });
+        }
+        return res.status(500).json({ error: error?.message || 'Failed to save feedback' });
       }
     } catch (err: any) {
       console.warn('Supabase feedback_submissions insert bypass-fail:', err.message);
+      // Catch any unexpected errors
+      if (err.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          error: 'already_reviewed',
+          message: `You've already shared your feedback with ${business_name}. Thank you!`
+        });
+      }
+      return res.status(500).json({ error: err.message });
     }
   }
 
@@ -2071,6 +2136,36 @@ app.post('/api/feedback/submit', async (req, res) => {
   res.json({ success: true, submission: insertedRecord, savedToDb });
 });
 
+
+// ─── GET BUSINESS NAME ──────────────────────────────────────
+app.get('/api/business/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Business ID is required' });
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('business_name, place_id, contact_email')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    res.json({
+      business_name: data.business_name || null,
+      place_id: data.place_id || null,
+      contact_email: data.contact_email || null,
+    });
+  } catch (err) {
+    console.error('Error fetching business:', err);
+    res.status(500).json({ error: 'Failed to fetch business' });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SAVE AUTO-SEND TOGGLE STATE
@@ -3347,6 +3442,29 @@ app.delete('/api/sms/scheduled-customers/:id', authenticate, async (req, res) =>
   } catch (err: any) {
     console.error('[DELETE] Unexpected error:', err);
     res.status(500).json({ error: err.message || 'Internal server error' });
+  }
+});
+
+
+// Add this GET endpoint
+app.get('/api/user/profile', authenticate, async (req, res) => {
+  const userId = req.userId;
+  try {
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('id, business_name, place_id, contact_email, email')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Return in the shape the frontend expects: { profile: ... }
+    res.json({ profile });
+  } catch (err: any) {
+    console.error('Error fetching profile:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

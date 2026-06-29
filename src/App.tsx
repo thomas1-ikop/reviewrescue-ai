@@ -342,29 +342,12 @@ if (bad.length > 0) {
 
 /// ─── SMS TOUR TRIGGER ──────────────────────────────────────
 useEffect(() => {
-  console.log('🔍 SMS Tour Check:', {
-    currentRoute,
-    user: !!user,
-    showTour,
-    showOnboarding,
-    tourCompleted: localStorage.getItem('sms_tour_completed'),
-  });
-
-  // Only show SMS tour if:
-  // 1. User is on SMS tab
-  // 2. User is logged in
-  // 3. Onboarding tour (showTour) is NOT active
-  // 4. Onboarding modal (showOnboarding) is NOT active
-  // 5. User hasn't completed SMS tour before (localStorage)
-  if (
-    currentRoute === 'sms' &&
-    user &&
-    !showTour &&
-    !showOnboarding &&
-    !localStorage.getItem('sms_tour_completed')
-  ) {
-    console.log('✅ Showing SMS tour!');
-    setShowSmsTour(true);
+  if (currentRoute === 'sms' && user) {
+    const tourCompleted = localStorage.getItem('sms_tour_completed');
+    if (!tourCompleted && !showTour && !showOnboarding) {
+      console.log('✅ Showing SMS tour!');
+      setShowSmsTour(true);
+    }
   } else {
     setShowSmsTour(false);
   }
@@ -1570,15 +1553,19 @@ if (currentRoute === 'reset-password') {
       onStartTour={() => setShowSmsTour(true)}
     />
     {showSmsTour && (
-      <SmsTour
-        isOpen={showSmsTour}
-        onComplete={() => {
-          setShowSmsTour(false);
-          triggerToast('✅ SMS Tour complete! You\'re ready to start collecting reviews.', 'success');
-        }}
-        onSkip={() => setShowSmsTour(false)}
-      />
-    )}
+  <SmsTour
+    isOpen={showSmsTour}
+    onComplete={() => {
+      setShowSmsTour(false);
+      localStorage.setItem('sms_tour_completed', 'true');  // ← MUST BE HERE
+      triggerToast('✅ SMS Tour complete! You\'re ready to start collecting reviews.', 'success');
+    }}
+    onSkip={() => {
+      setShowSmsTour(false);
+      localStorage.setItem('sms_tour_completed', 'true');  // ← MUST BE HERE
+    }}
+  />
+)}
   </>
 )}
         

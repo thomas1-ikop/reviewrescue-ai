@@ -1,3 +1,4 @@
+// src/components/PublicReviewView.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   Star, 
@@ -6,76 +7,277 @@ import {
   Mail, 
   Smile, 
   Frown, 
-  MapPin,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 
-export default function PublicReviewView() {
-  // Parse query parameters
-  const params = new URLSearchParams(window.location.search);
-  const businessName = params.get('business') || params.get('Business') || 'Our Business';
-  const yelpUrl = params.get('yelpUrl') || params.get('yelpurl') || params.get('YelpUrl') || '';
-  const placeId = params.get('placeId') || '';
-  const email = params.get('email') || '';
-  const userId = params.get('userId') || '';
-  const customerName = params.get('customerName') || '';
+interface BusinessData {
+  business_name: string | null;
+  place_id: string | null;
+  contact_email: string | null;
+}
 
-  // Ratings States
+export default function PublicReviewView() {
+  const params = new URLSearchParams(window.location.search);
+  const businessId = params.get('business') || '';
+  const customerNameParam = params.get('customerName') || '';
+  const placeIdParam = params.get('placeId') || '';
+  const emailParam = params.get('email') || '';
+
+  // ── STATE ──
+  const [businessData, setBusinessData] = useState<BusinessData | null>(null);
+  const [customerName, setCustomerName] = useState<string>(customerNameParam);
   const [rating, setRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [duplicateMessage, setDuplicateMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Auto-submit feedback to backend when user clicks a star
+  // ── FETCH BUSINESS DATA ─────────────────────────────────────────
+  useEffect(() => {
+    const fetchBusinessData = async () => {
+      if (!businessId) {
+        setErrorMsg('Invalid business link. Please contact the business directly.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/business/${businessId}`);
+        
+        if (!res.ok) {
+          throw new Error('Business not found');
+        }
+
+        const data = await res.json();
+        setBusinessData({
+          business_name: data.business_name || 'Our Business',
+          place_id: data.place_id || null,
+          contact_email: data.contact_email || null,
+        });
+      } catch (err) {
+        console.error('Failed to fetch business:', err);
+        setErrorMsg('Could not load business information. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBusinessData();
+  }, [businessId]);
+
+  // ── HANDLE SUBMISSION ───────────────────────────────────────────
   const handleSelectRating = async (selectedRating: number) => {
     if (isSubmitted || isSubmitting) return;
+
+    // Validate customer name
+    if (!customerName.trim()) {
+      setErrorMsg('Please enter your name before submitting.');
+      return;
+    }
 
     setRating(selectedRating);
     setIsSubmitting(true);
     setErrorMsg(null);
+    setDuplicateMessage(null);
+
+    const businessName = businessData?.business_name || 'Our Business';
+    const placeId = businessData?.place_id || placeIdParam;
 
     try {
       const res = await fetch('/api/feedback/submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-  business_name: businessName,
-  rating: selectedRating,
-  place_id: placeId,    // ✅ Use place_id, not user_id
-  customer_name: customerName
-})
+          business_name: businessName,
+          rating: selectedRating,
+          place_id: placeId,
+          customer_name: customerName.trim(),
+        }),
       });
 
-      if (res.ok) {
+      const data = await res.json();
+
+      // ─── DUPLICATE REVIEW ────────────────────────────────────
+      if (res.status === 409 && data.error === 'already_reviewed') {
+        setDuplicateMessage(
+          data.message || `You've already shared your feedback with ${businessName}. Thank you for your support!`
+        );
         setIsSubmitted(true);
-      } else {
-        const errorData = await res.json();
-        console.warn('Backend feedback submission error:', errorData);
-        setIsSubmitted(true);
+        return;
       }
-    } catch (err) {
-      console.warn('Network error during feedback submission:', err);
+
+      // ─── OTHER ERRORS ─────────────────────────────────────────
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit feedback');
+      }
+
+      // ─── SUCCESS ──────────────────────────────────────────────
+      setIsSubmitted(true);
+    } catch (err: any) {
+      console.error('Error submitting feedback:', err);
+      setErrorMsg(err.message || 'Something went wrong. Please try again.');
       setIsSubmitted(true);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ─── RETRY ──────────────────────────────────────────────────────
+  const handleRetry = () => {
+    setIsSubmitted(false);
+    setErrorMsg(null);
+    setDuplicateMessage(null);
+    setRating(null);
+  };
+
+  // ─── LOADING STATE ──────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="flex items-center gap-3 text-slate-500">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── ERROR STATE ─────────────────────────────────────────────────
+  if (errorMsg && !isSubmitted) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-bold text-slate-900">Something went wrong</h2>
+          <p className="text-sm text-slate-500 mt-2">{errorMsg}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const businessName = businessData?.business_name || 'Our Business';
+  const placeId = businessData?.place_id || placeIdParam;
+  const contactEmail = businessData?.contact_email || emailParam;
+
+  // ─── DUPLICATE / ALREADY REVIEWED ──────────────────────────────
+  if (isSubmitted && duplicateMessage) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-amber-400 to-amber-600" />
+          <div className="p-8 text-center">
+            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-amber-500" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">Already Reviewed!</h2>
+            <p className="text-sm text-slate-500 mt-2">{duplicateMessage}</p>
+            <p className="text-xs text-slate-400 mt-4">
+              Thank you for being a valued customer.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── SUCCESS STATE ──────────────────────────────────────────────
+  if (isSubmitted && rating !== null) {
+    const isPositive = rating >= 4;
+    const googleReviewLink = placeId
+      ? `https://search.google.com/local/writereview?placeid=${placeId}`
+      : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review`;
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
+          <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
+          
+          <div className="p-8 space-y-5">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
+                {isPositive ? (
+                  <Smile className="w-8 h-8 text-emerald-500" />
+                ) : (
+                  <Frown className="w-8 h-8 text-amber-500" />
+                )}
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Thank you, {customerName.trim() || 'valued customer'}!
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                You rated {businessName} <span className="font-bold text-yellow-500">{rating} stars</span>
+              </p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4">
+              {isPositive ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 text-center">
+                    Would you mind sharing your experience publicly on Google?
+                  </p>
+                  <a
+                    href={googleReviewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold"
+                  >
+                    <Star className="w-4 h-4 fill-current" />
+                    Write a Google Review
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                  <p className="text-[10px] text-slate-400 text-center">
+                    This will open Google Maps where you can leave your review.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 text-center">
+                    We apologize that your experience wasn't perfect. Please contact us directly so we can make it right.
+                  </p>
+                  {contactEmail ? (
+                    <a
+                      href={`mailto:${contactEmail}?subject=Feedback about my experience at ${encodeURIComponent(businessName)}`}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 transition text-white rounded-xl text-sm font-semibold"
+                    >
+                      <Mail className="w-4 h-4" />
+                      Contact Us
+                    </a>
+                  ) : (
+                    <p className="text-sm text-slate-400 text-center italic">
+                      Our team will reach out to address your concerns.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
+              {businessName} verified feedback channel &bull; Rewakely &copy; 2026
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── MAIN FORM ──────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 md:p-8 font-sans">
       <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
-        
-        {/* Top Accent Stripe */}
         <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600" />
 
-        {/* Content Area */}
         <div className="p-6 md:p-8 space-y-6">
-          
-          {/* Header */}
+          {/* ─── HEADER ──────────────────────────────────────────── */}
           <div className="text-center space-y-2">
             <span className="inline-block p-2.5 rounded-full bg-indigo-50 text-indigo-600 mb-2">
               <MessageSquare size={24} className="animate-pulse" style={{ animationDuration: '3s' }} />
@@ -83,27 +285,43 @@ export default function PublicReviewView() {
             <h1 className="text-xl font-black text-slate-900 tracking-tight">
               Customer Feedback
             </h1>
-            <p className="text-sm text-slate-500 font-sans">
+            <p className="text-sm text-slate-500">
               How was your experience at{' '}
-              <strong className="text-slate-950 font-black">{businessName}</strong>?
+              <strong className="text-slate-900 font-extrabold">{businessName}</strong>?
             </p>
           </div>
 
-          {/* Core Interactive Card */}
-          <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl relative">
-            
-            {/* Stars Selection Row */}
+          {/* ─── FORM ────────────────────────────────────────────── */}
+          <div className="p-5 bg-slate-50 border border-slate-100 rounded-2xl">
+            {/* Name input */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Your Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              />
+            </div>
+
+            {/* Stars */}
             <div className="flex items-center justify-center gap-2 py-4">
               {[1, 2, 3, 4, 5].map((star) => {
-                const isActive = hoverRating !== null ? star <= hoverRating : rating !== null ? star <= rating : false;
+                const isActive = hoverRating !== null 
+                  ? star <= hoverRating 
+                  : rating !== null 
+                    ? star <= rating 
+                    : false;
                 return (
                   <button
                     key={star}
-                    id={`review-star-btn-${star}`}
-                    disabled={isSubmitted || isSubmitting}
-                    onMouseEnter={() => !isSubmitted && setHoverRating(star)}
-                    onMouseLeave={() => !isSubmitted && setHoverRating(null)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(null)}
                     onClick={() => handleSelectRating(star)}
+                    disabled={isSubmitting}
                     className="focus:outline-none transition-all active:scale-90 hover:scale-110 disabled:scale-100 disabled:opacity-50 cursor-pointer p-1"
                   >
                     <Star
@@ -118,112 +336,30 @@ export default function PublicReviewView() {
               })}
             </div>
 
-            {/* Hint message when no rating is selected */}
-            {rating === null && (
+            {!rating && !isSubmitting && (
               <p className="text-center text-[11px] text-slate-400 font-medium">
-                Tap your custom star score to submit review.
+                Tap a star to submit your review
               </p>
             )}
 
-            {/* Submitted Feedback States */}
-            {isSubmitted && rating !== null && (
-              <div className="space-y-4 border-t border-slate-200/60 pt-4 mt-2 text-center animate-fade-in">
-                
-                {/* Standard Thank You Banner */}
-                <div className="flex items-center justify-center gap-1.5 text-emerald-600 bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl text-xs font-bold font-sans">
-                  <CheckCircle2 size={14} className="shrink-0" />
-                  Thanks for your feedback!
-                </div>
+            {isSubmitting && (
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                <span className="text-sm text-slate-500">Submitting...</span>
+              </div>
+            )}
 
-                {/* POSITIVE CONVERSION STATE (Rating >= 4) */}
-                {rating >= 4 ? (
-                  <div className="space-y-4 animate-fade-in">
-                    <div className="text-center space-y-1">
-                      <div className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-yellow-100">
-                        <Smile size={10} /> Outstanding score!
-                      </div>
-                      <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                        Since you had an exceptional experience, would you mind sharing your review publicly on Google to help potential customers find us? It takes under 30 seconds!
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      {placeId ? (
-                        <a
-                          href={`https://search.google.com/local/writereview?placeid=${placeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 active:scale-98 transition shadow duration-150 text-white rounded-xl text-xs font-black"
-                          id="btn-public-review-google"
-                        >
-                          Leave review on Google Maps
-                          <ExternalLink size={14} />
-                        </a>
-                      ) : (
-                        <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl flex items-start gap-2 text-left">
-                          <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
-                          <p className="text-[11px] text-amber-700 font-sans leading-relaxed">
-                            Please search for{' '}
-                            <strong className="font-extrabold">{businessName}</strong> on Google
-                            Maps directly to leave your review.
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Optional Yelp Integration conversion */}
-                      {yelpUrl && (
-                        <a
-                          href={yelpUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-700 active:scale-98 transition text-white rounded-xl text-xs font-extrabold"
-                          id="btn-public-review-yelp"
-                        >
-                          Review us on Yelp
-                          <ExternalLink size={14} />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  /* CRITICAL CONTACT MITIGATION STATE (Rating <= 3) */
-                  <div className="space-y-4 animate-fade-in text-center">
-                    <div className="space-y-1">
-                      <div className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-rose-100">
-                        <Frown size={10} /> We missed the mark
-                      </div>
-                      <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                        We genuinely apologize that your visit fell short. Rather than updating Google, we prefer resolving this directly. Please contact our leadership so we can rectify this for you.
-                      </p>
-                    </div>
-
-                    {email ? (
-                      <div className="space-y-3">
-                        <a
-                          href={`mailto:${email}?subject=Feedback regarding my experience at ${encodeURIComponent(businessName)}`}
-                          className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 transition text-white rounded-xl text-xs font-black shadow"
-                          id="btn-contact-mitigation-email"
-                        >
-                          <Mail size={14} />
-                          Contact Us Directly
-                        </a>
-                        <p className="text-[10px] text-slate-400 font-mono">
-                          Direct Line: <span className="font-extrabold text-slate-600">{email}</span>
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-slate-400 italic">
-                        Our management team has been notified and will address this issue with priority.
-                      </p>
-                    )}
-                  </div>
-                )}
+            {/* Error message */}
+            {errorMsg && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs text-center">
+                <AlertCircle className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+                {errorMsg}
               </div>
             )}
           </div>
 
-          {/* Subtle informational bottom bar */}
-          <div className="text-center text-[10px] text-slate-400 font-sans flex items-center justify-center gap-1.5 border-t border-slate-100 pt-4">
+          {/* ─── FOOTER ───────────────────────────────────────────── */}
+          <div className="text-center text-[10px] text-slate-400 flex items-center justify-center gap-1.5 border-t border-slate-100 pt-4">
             <span className="font-semibold">{businessName} verified feedback channel</span>
             <span>&bull;</span>
             <span className="font-mono">Rewakely &copy; 2026</span>
