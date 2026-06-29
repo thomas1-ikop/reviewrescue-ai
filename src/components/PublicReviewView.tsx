@@ -188,118 +188,110 @@ export default function PublicReviewView() {
 
   // ─── SUCCESS STATE ──────────────────────────────────────────────
   if (isSubmitted && rating !== null) {
-    const isPositive = rating >= 4;
-    
-    // Build the Google Maps review link
-    const googleReviewLink = placeId
-      ? `https://search.google.com/local/writereview?placeid=${placeId}`
-      : null;
+  const isPositive = rating >= 4;
+  
+  // Build the Google Maps link – direct if placeId exists, else search
+  const googleReviewLink = placeId
+    ? `https://search.google.com/local/writereview?placeid=${placeId}`
+    : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review`;
 
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
-          <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
-          
-          <div className="p-8 space-y-5">
-            {/* Header */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
-                {isPositive ? (
-                  <Smile className="w-8 h-8 text-emerald-500" />
-                ) : (
-                  <Frown className="w-8 h-8 text-amber-500" />
-                )}
-              </div>
-              <h2 className="text-xl font-bold text-slate-900">
-                Thank you, {customerName.trim() || 'valued customer'}!
-              </h2>
-              <div className="flex items-center justify-center gap-1 mt-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={20}
-                    fill={star <= rating ? '#EAB308' : 'none'}
-                    className={star <= rating ? 'text-yellow-500' : 'text-slate-300'}
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">
-                You rated {businessName} {rating} stars
-              </p>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4">
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
+        <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
+        
+        <div className="p-8 space-y-5">
+          {/* Header */}
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
               {isPositive ? (
-                // ─── 4-5 STARS: Google Maps Review Link ────────────────
-                <div className="space-y-3">
-                  {googleReviewLink ? (
-                    <>
-                      <p className="text-sm text-slate-600 text-center">
-                        ⭐ You had a great experience! Would you mind sharing it publicly on Google Maps?
-                      </p>
-                      <a
-                        href={googleReviewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-blue-100"
-                      >
-                        <MapPin className="w-4 h-4" />
-                        Write a Review on Google Maps
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                      <p className="text-[10px] text-slate-400 text-center">
-                        This will open Google Maps where you can leave your review
-                      </p>
-                    </>
-                  ) : (
-                    // Fallback if no place_id
-                    <div className="text-center">
-                      <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-xl">
-                        ⚠️ This business hasn't set up their Google Maps link yet.
-                      </p>
-                      <p className="text-xs text-slate-400 mt-2">
-                        Please search for {businessName} on Google Maps to leave your review.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <Smile className="w-8 h-8 text-emerald-500" />
               ) : (
-                // ─── 1-3 STARS: Contact Information ─────────────────────
-                <div className="space-y-3">
-                  <p className="text-sm text-slate-600 text-center">
-                    We're sorry your experience wasn't perfect. Please contact the business directly so they can make it right.
-                  </p>
-                  
-                  {contactEmail ? (
-                    <a
-                      href={`mailto:${contactEmail}?subject=Feedback about my experience at ${encodeURIComponent(businessName)}`}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-slate-100"
-                    >
-                      <Mail className="w-4 h-4" />
-                      Contact the Owner
-                    </a>
-                  ) : (
-                    <div className="text-center p-4 bg-slate-50 rounded-xl">
-                      <p className="text-sm text-slate-500">
-                        📧 The business owner will reach out to you directly to address your concerns.
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Please expect a response within 1-2 business days.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <Frown className="w-8 h-8 text-amber-500" />
               )}
             </div>
-
-            <div className="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
-              {businessName} verified feedback channel &bull; Rewakely &copy; 2026
+            <h2 className="text-xl font-bold text-slate-900">
+              Thank you, {customerName.trim() || 'valued customer'}!
+            </h2>
+            <div className="flex items-center justify-center gap-1 mt-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  size={20}
+                  fill={star <= rating ? '#EAB308' : 'none'}
+                  className={star <= rating ? 'text-yellow-500' : 'text-slate-300'}
+                />
+              ))}
             </div>
+            <p className="text-sm text-slate-500 mt-1">
+              You rated {businessName} {rating} stars
+            </p>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4">
+            {isPositive ? (
+              // ─── 4-5 STARS: Google Maps link ──────────────────────────
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600 text-center">
+                  ⭐ You had a great experience! Would you mind sharing it publicly on Google Maps?
+                </p>
+                <a
+                  href={googleReviewLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-3.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-blue-100"
+                >
+                  <MapPin className="w-4 h-4" />
+                  {placeId ? 'Write a Review on Google Maps' : 'Find us on Google Maps'}
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+                <p className="text-[10px] text-slate-400 text-center">
+                  {placeId 
+                    ? 'This will open the review form for this business'
+                    : 'You will be redirected to a Google search – click the business to leave a review'
+                  }
+                </p>
+              </div>
+            ) : (
+              // ─── 1-3 STARS: Contact the owner ─────────────────────────
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600 text-center">
+                  We're sorry your experience wasn't perfect. Please contact the business directly so they can make it right.
+                </p>
+                
+                {contactEmail ? (
+                  <a
+                    href={`mailto:${contactEmail}?subject=Feedback about my experience at ${encodeURIComponent(businessName)}`}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-slate-100"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Contact the Owner
+                  </a>
+                ) : (
+                  <div className="text-center p-4 bg-slate-50 rounded-xl">
+                    <p className="text-sm text-slate-500">
+                      📧 The business owner will reach out to you directly to address your concerns.
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Please expect a response within 1-2 business days.
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      (The owner hasn't set a contact email yet.)
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
+            {businessName} verified feedback channel &bull; Rewakely &copy; 2026
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ─── MAIN FORM ──────────────────────────────────────────────────
   return (

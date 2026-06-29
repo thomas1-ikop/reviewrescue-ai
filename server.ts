@@ -2158,7 +2158,8 @@ app.post('/api/feedback/submit', async (req, res) => {
 });
 
 
-// ─── GET BUSINESS NAME ──────────────────────────────────────
+// server.ts – replace the existing /api/business/:id
+
 app.get('/api/business/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -2167,20 +2168,46 @@ app.get('/api/business/:id', async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabaseClient
+    // First, get the profile
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('business_name, place_id, contact_email')
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    if (profileError && profileError.code !== 'PGRST116') {
+      throw profileError;
+    }
+
+    let business_name = profile?.business_name || null;
+    let contact_email = profile?.contact_email || null;
+    let place_id = profile?.place_id || null;
+
+    // If place_id is missing, try to get it from google_tokens
+    if (!place_id && supabaseServiceClient) {
+      const { data: token } = await supabaseServiceClient
+        .from('google_tokens')
+        .select('location_id')
+        .eq('user_id', id)
+        .maybeSingle();
+      if (token?.location_id) {
+        place_id = token.location_id;
+        // Optionally, update the profile for future use
+        await supabaseServiceClient
+          .from('profiles')
+          .update({ place_id: place_id })
+          .eq('id', id);
+      }
+    }
+
+    if (!business_name) {
       return res.status(404).json({ error: 'Business not found' });
     }
 
     res.json({
-      business_name: data.business_name || null,
-      place_id: data.place_id || null,
-      contact_email: data.contact_email || null,
+      business_name,
+      place_id,
+      contact_email,
     });
   } catch (err) {
     console.error('Error fetching business:', err);
