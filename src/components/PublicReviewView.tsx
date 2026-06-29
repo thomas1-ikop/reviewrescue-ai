@@ -193,7 +193,7 @@ export default function PublicReviewView() {
   // Build the Google Maps link – direct if placeId exists, else search
   const googleReviewLink = placeId
     ? `https://search.google.com/local/writereview?placeid=${placeId}`
-    : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review`;
+    : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review+on+google+maps`;
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
