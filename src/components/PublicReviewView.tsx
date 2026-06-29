@@ -96,6 +96,7 @@ export default function PublicReviewView() {
           rating: selectedRating,
           place_id: placeId,
           customer_name: customerName.trim(),
+          business_id: businessId
         }),
       });
 

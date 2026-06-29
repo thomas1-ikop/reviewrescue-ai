@@ -2021,8 +2021,18 @@ app.post('/api/autopilot/sync', async (req, res) => {
   }
 });
 
+
+// server.ts – replace the existing /api/feedback/submit route
+
 app.post('/api/feedback/submit', async (req, res) => {
-  const { business_name, rating, customer_ip: clientIp, place_id, customer_name } = req.body;
+  const { 
+    business_name, 
+    rating, 
+    customer_ip: clientIp, 
+    place_id, 
+    customer_name,
+    business_id   // <-- NEW: the business owner's user ID from the QR URL
+  } = req.body;
 
   if (!business_name || rating === undefined || rating === null) {
     return res.status(400).json({ error: 'business_name and rating are required' });
@@ -2031,23 +2041,28 @@ app.post('/api/feedback/submit', async (req, res) => {
   const determinedIp = clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const finalIp = Array.isArray(determinedIp) ? determinedIp[0] : determinedIp;
 
+  // ── DETERMINE USER ID ──────────────────────────────────────────
   let userId = null;
-  if (place_id && supabaseServiceClient) {
+
+  // 1. Use the provided business_id directly (from QR code)
+  if (business_id) {
+    userId = business_id;
+  } 
+  // 2. Fallback: look up by place_id (for backwards compatibility)
+  else if (place_id && supabaseServiceClient) {
     try {
       const { data: profile } = await supabaseServiceClient
         .from('profiles')
         .select('id')
         .eq('place_id', place_id)
         .maybeSingle();
-      if (profile) {
-        userId = profile.id;
-      }
+      if (profile) userId = profile.id;
     } catch (err) {
       console.warn('Error looking up place_id:', err);
     }
   }
 
-  // ✅ DUPLICATE CHECK: if userId and customer_name exist, check for existing submission
+  // ── DUPLICATE CHECK (only if we have userId and customer_name) ──
   if (userId && customer_name) {
     const { data: existing, error: checkError } = await supabaseServiceClient
       .from('feedback_submissions')
@@ -2058,11 +2073,9 @@ app.post('/api/feedback/submit', async (req, res) => {
 
     if (checkError) {
       console.error('Duplicate check error:', checkError);
-      // Continue anyway – we'll let the unique constraint catch it
     }
 
     if (existing) {
-      // Already reviewed – return a friendly message
       return res.status(409).json({
         success: false,
         error: 'already_reviewed',
@@ -2071,7 +2084,7 @@ app.post('/api/feedback/submit', async (req, res) => {
     }
   }
 
-  // ─── SAVE TO DATABASE ──────────────────────────────────────────
+  // ── SAVE TO DATABASE ──────────────────────────────────────────
   let insertedRecord = null;
   let savedToDb = false;
 
@@ -2096,9 +2109,8 @@ app.post('/api/feedback/submit', async (req, res) => {
         insertedRecord = data[0];
         savedToDb = true;
       } else {
-        console.warn('Supabase feedback insert warning:', error?.message);
-        // If it's a unique violation (duplicate), return friendly error
-        if (error?.code === '23505') { // unique violation
+        // If unique violation, return friendly error
+        if (error?.code === '23505') {
           return res.status(409).json({
             success: false,
             error: 'already_reviewed',
@@ -2108,8 +2120,7 @@ app.post('/api/feedback/submit', async (req, res) => {
         return res.status(500).json({ error: error?.message || 'Failed to save feedback' });
       }
     } catch (err: any) {
-      console.warn('Supabase feedback_submissions insert bypass-fail:', err.message);
-      // Catch any unexpected errors
+      console.warn('Supabase insert error:', err.message);
       if (err.code === '23505') {
         return res.status(409).json({
           success: false,
