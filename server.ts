@@ -290,25 +290,46 @@ async function generateReviewToken(placeId: string, contactEmail: string, custom
 
 
 // -------------------- DATABASE HELPERS --------------------
+// server.ts – replace the existing getProfile function
+
 async function getProfile(userId: string) {
   if (!supabaseClient) {
     throw new Error('Supabase client is not initialized or credentials are missing.');
   }
+
+  // FIRST: Check if the user exists in auth
+  try {
+    const { data: authUser, error: authError } = await supabaseServiceClient
+      .auth.admin.getUserById(userId);
+    
+    // If user doesn't exist in auth, throw an error
+    if (authError || !authUser) {
+      console.warn(`[Profile] User ${userId} not found in auth`);
+      throw new Error('User not found');
+    }
+  } catch (authErr: any) {
+    console.warn(`[Profile] Auth check failed for ${userId}:`, authErr.message);
+    throw new Error('Invalid user session');
+  }
+
+  // THEN: Check if profile exists
   const { data, error } = await supabaseClient
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .maybeSingle();
   
-  if (error) {
+  if (error && error.code !== 'PGRST116') {
     throw new Error(`Profile fetch failed: ${error.message}`);
   }
 
+  // If profile doesn't exist, create one
   if (!data) {
+    console.log(`[Profile] Creating new profile for user: ${userId}`);
     const defaultProfile = {
       id: userId,
       email: '',
-      business_name: 'Our Business',
+      business_name: 'My Business', // ← Change this to something generic
       industry: '',
       tone: 'Friendly',
       subscription_status: 'inactive',
@@ -322,10 +343,11 @@ async function getProfile(userId: string) {
       await (supabaseServiceClient || supabaseClient)
         .from('profiles')
         .insert([defaultProfile]);
+      return { data: defaultProfile, isFallback: false };
     } catch (insertErr: any) {
-      console.warn('Failed to insert default profile for missing user:', insertErr.message || insertErr);
+      console.warn('Failed to insert default profile:', insertErr.message || insertErr);
+      throw new Error('Failed to create profile');
     }
-    return { data: defaultProfile, isFallback: false };
   }
 
   return { data, isFallback: false };
@@ -815,74 +837,120 @@ app.post('/api/user/auth', async (req, res) => {
     }
 
     if (action === 'signin') {
-      if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
-      }
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
+  // ─── STEP 1: Authenticate with Supabase Auth ──────────────────
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
 
-      if (error) {
-        return res.status(401).json({ error: error.message });
-      }
+  if (error) {
+    return res.status(401).json({ error: error.message });
+  }
 
-      if (!data.user) {
-        return res.status(401).json({ error: 'Login failed - No user object returned.' });
-      }
+  if (!data.user) {
+    return res.status(401).json({ error: 'Login failed - No user object returned.' });
+  }
 
-      const userId = data.user.id;
-      let profile;
-      try {
-        const { data: prof, error: getErr } = await supabaseClient
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .maybeSingle();
+  const userId = data.user.id;
+  const userEmail = data.user.email; // ✅ This comes from Auth, not the request
 
-        if (getErr || !prof) {
-          const profileData = {
-            id: userId,
-            email: email,
-            business_name: businessName || 'My Business',
-            industry: 'Other',
-            tone: 'Friendly',
-            subscription_status: 'inactive',
-            subscription_plan: 'pro',
-            onboarded: true,
-            tour_completed: false,
-            verified: false,
-            created_at: new Date().toISOString()
-          };
-          const { error: insertErr } = await (supabaseServiceClient || supabaseClient).from('profiles').insert([profileData]);
-          if (insertErr) {
-            return res.status(500).json({ error: `Failed to initialize missing profile: ${insertErr.message}` });
-          }
-          profile = profileData;
-        } else if (getErr) {
-          return res.status(500).json({ error: `Failed to fetch profile row: ${getErr.message}` });
-        } else {
-          profile = prof;
-        }
-      } catch (err: any) {
-        return res.status(500).json({ error: err.message });
-      }
-
-      // Check if email is verified
-      if (profile && !profile.verified) {
-        return res.status(403).json({
-          error: 'Please verify your email before logging in. Check your inbox for the verification link.'
-        });
-      }
-
-      return res.json({ profile, isFallback: false });
+  // ─── STEP 2: Verify the user exists in Auth (extra safety) ──
+  try {
+    const { data: authUser, error: authError } = await supabaseServiceClient
+      .auth.admin.getUserById(userId);
+    if (authError || !authUser) {
+      console.warn(`Auth user ${userId} not found:`, authError);
+      return res.status(401).json({ error: 'User session invalid. Please log in again.' });
     }
+  } catch (authErr: any) {
+    console.error('Auth verification error:', authErr);
+    return res.status(500).json({ error: 'Authentication service error.' });
+  }
+
+  // ─── STEP 3: Get or create profile ──────────────────────────────
+  let profile;
+  try {
+    const { data: prof, error: getErr } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (getErr) {
+      return res.status(500).json({ error: `Failed to fetch profile: ${getErr.message}` });
+    }
+
+    if (!prof) {
+      // ✅ Only create profile if the user is authenticated (we already verified)
+      const businessName = req.body.businessName || 'My Business';
+      const profileData = {
+        id: userId,
+        email: userEmail, // Use email from Auth, not from request (more reliable)
+        business_name: businessName,
+        industry: 'Other',
+        tone: 'Friendly',
+        subscription_status: 'inactive',
+        subscription_plan: 'pro',
+        onboarded: true,
+        tour_completed: false,
+        verified: false,
+        created_at: new Date().toISOString()
+      };
+
+      const { error: insertErr } = await (supabaseServiceClient || supabaseClient)
+        .from('profiles')
+        .insert([profileData]);
+
+      if (insertErr) {
+        return res.status(500).json({ error: `Failed to create profile: ${insertErr.message}` });
+      }
+
+      profile = profileData;
+    } else {
+      profile = prof;
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  // ─── STEP 4: Check email verification ──────────────────────────
+  if (profile && !profile.verified) {
+    return res.status(403).json({
+      error: 'Please verify your email before logging in. Check your inbox for the verification link.'
+    });
+  }
+
+  return res.json({ profile, isFallback: false });
+}
 
     if (manualUserId) {
-      const { data: profile, isFallback } = await getProfile(manualUserId);
-      return res.json({ profile, isFallback });
-    }
+  // First, verify that this user actually exists in Supabase Auth
+  const { data: authUser, error: authError } = await supabaseServiceClient
+    .auth.admin.getUserById(manualUserId);
+
+  if (authError || !authUser) {
+    // Invalid user – return 401 and let frontend handle it
+    console.warn(`Manual userId ${manualUserId} not found in Auth`);
+    return res.status(401).json({ error: 'Invalid user session. Please log in again.' });
+  }
+
+  // Valid user – now fetch the profile, but DO NOT create one if missing
+  const { data: profile, error: profError } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', manualUserId)
+    .maybeSingle();
+
+  if (profError || !profile) {
+    return res.status(404).json({ error: 'Profile not found. Please complete signup.' });
+  }
+
+  return res.json({ profile, isFallback: false });
+}
 
     return res.status(400).json({ error: 'Invalid user action' });
   } catch (err: any) {
