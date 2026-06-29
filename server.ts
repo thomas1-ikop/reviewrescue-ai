@@ -2038,6 +2038,12 @@ app.post('/api/feedback/submit', async (req, res) => {
     return res.status(400).json({ error: 'business_name and rating are required' });
   }
 
+  // ─── Normalize the customer name ONCE at the top ────────────────
+  const rawCustomerName = (customer_name || '').trim();
+  const normalizedName = rawCustomerName
+    .toLowerCase()
+    .replace(/\s+/g, ' '); // collapse multiple spaces
+
   const determinedIp = clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
   const finalIp = Array.isArray(determinedIp) ? determinedIp[0] : determinedIp;
 
@@ -2062,13 +2068,13 @@ app.post('/api/feedback/submit', async (req, res) => {
     }
   }
 
-  // ── DUPLICATE CHECK (only if we have userId and customer_name) ──
-  if (userId && customer_name) {
+  // ── DUPLICATE CHECK using normalizedName (already defined) ──
+  if (userId && rawCustomerName) {
     const { data: existing, error: checkError } = await supabaseServiceClient
       .from('feedback_submissions')
       .select('id')
       .eq('user_id', userId)
-      .eq('customer_name', customer_name)
+      .eq('customer_name_normalized', normalizedName) // ✅ Case-insensitive check
       .maybeSingle();
 
     if (checkError) {
@@ -2094,11 +2100,13 @@ app.post('/api/feedback/submit', async (req, res) => {
         business_name,
         rating: parseInt(rating, 10),
         customer_ip: finalIp,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        customer_name: rawCustomerName,              // ✅ store original (trimmed)
+        customer_name_normalized: normalizedName,    // ✅ store normalized
       };
 
       if (userId) insertData.user_id = userId;
-      if (customer_name) insertData.customer_name = customer_name;
+      // ✅ No need to set customer_name again – it's already in the object
 
       const { data, error } = await supabaseServiceClient
         .from('feedback_submissions')
@@ -2132,6 +2140,7 @@ app.post('/api/feedback/submit', async (req, res) => {
     }
   }
 
+  // ── FALLBACK (if Supabase isn't available) ──────────────────
   if (!savedToDb) {
     insertedRecord = {
       id: `local_fallback_${Math.random().toString(36).substring(2, 11)}`,
@@ -2139,7 +2148,8 @@ app.post('/api/feedback/submit', async (req, res) => {
       rating: parseInt(rating, 10),
       customer_ip: finalIp,
       user_id: userId,
-      customer_name: customer_name || null,
+      customer_name: rawCustomerName || null,        // ✅ use rawCustomerName
+      customer_name_normalized: normalizedName || null, // ✅ include normalized
       created_at: new Date().toISOString()
     };
   }
