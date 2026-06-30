@@ -140,7 +140,7 @@ useEffect(() => {
             <div>
               <h3 className="font-semibold text-slate-800">📱 QR Code</h3>
               <p className="text-xs text-slate-500">
-                Print and display for instant customer feedback
+                Print and display for instant customer feedback!
               </p>
             </div>
             {qrCodeDataUrl && (

@@ -15,6 +15,8 @@ import Logo from './components/Logo';
 import PricingCards from './components/PricingCards';
 import SmsTour from './components/SmsTour';
 import OnboardingModal from './components/OnboardingModal';
+import ReviewInvitesView from './components/ReviewInvitesView';
+import WaitlistModal from './components/WaitlistModal';
 import ReviewsView from './components/ReviewsView';
 import SMSCollector from './components/SMSCollector';
 import SettingsView from './components/SettingsView';
@@ -64,6 +66,8 @@ export default function App() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [showSmsTour, setShowSmsTour] = useState(false);
+
+  const [showWaitlist, setShowWaitlist] = useState(false);
 
   
   // Logged-in User Context
@@ -181,6 +185,14 @@ const [confirmModal, setConfirmModal] = useState<{
       setIsLoadingHealth(false);
     }
   };
+
+
+  // ─── WAITLIST MODAL EVENT LISTENER ──────────────────────────────────────
+useEffect(() => {
+  const handler = () => setShowWaitlist(true);
+  window.addEventListener('showWaitlist', handler);
+  return () => window.removeEventListener('showWaitlist', handler);
+}, []);
 
   // Sync state with address hash routing, perfect for sandbox refreshing
   useEffect(() => {
@@ -912,6 +924,14 @@ if (currentRoute === 'reset-password') {
     />
 
 
+    {/* ─── WAITLIST MODAL ──────────────────────────────────────────── */}
+<WaitlistModal 
+  isOpen={showWaitlist}
+  onClose={() => setShowWaitlist(false)}
+  planName="Premium Plan"
+/>
+
+
 
       {/* LANDING PAGE GRID VIEW */}
       {currentRoute === 'landing' && (
@@ -1543,30 +1563,17 @@ if (currentRoute === 'reset-password') {
             onClearAllReviews={handleClearAllReviews}
           />
         )}
+
+
+       
         
-        {/* 2. SMS Tab */}
-        {currentRoute === 'sms' && (
-  <>
-    <SMSCollector 
-      userId={user?.id} 
-      toast={triggerToast} 
-      onStartTour={() => setShowSmsTour(true)}
-    />
-    {showSmsTour && (
-  <SmsTour
-    isOpen={showSmsTour}
-    onComplete={() => {
-      setShowSmsTour(false);
-      localStorage.setItem('sms_tour_completed', 'true');  // ← MUST BE HERE
-      triggerToast('✅ SMS Tour complete! You\'re ready to start collecting reviews.', 'success');
-    }}
-    onSkip={() => {
-      setShowSmsTour(false);
-      localStorage.setItem('sms_tour_completed', 'true');  // ← MUST BE HERE
-    }}
+        {/* 2. Review Invites Tab */}
+{currentRoute === 'invites' && (
+  <ReviewInvitesView 
+    userId={user?.id}
+    isPremium={user?.subscription_plan === 'premium'}
+    toast={triggerToast}
   />
-)}
-  </>
 )}
         
         {/* 3. Auto-Reply */}

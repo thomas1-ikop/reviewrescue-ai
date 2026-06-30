@@ -10,7 +10,7 @@ export interface Profile {
   industry: string;
   tone: string;
   subscription_status: 'active' | 'inactive';
-  subscription_plan: 'pro';
+  subscription_plan: 'pro' | 'premium';
   onboarded: boolean;
   stripe_customer_id?: string | null;
   autopilot_enabled?: boolean;

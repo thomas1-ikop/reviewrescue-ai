@@ -196,6 +196,81 @@ if (supabaseUrl && supabaseServiceKey) {
   console.log('Supabase service role key not specified. Falling back to standard client.');
 }
 
+
+// ─── EMAIL TEMPLATE ──────────────────────────────────────────────
+
+function getReviewInviteHTML({
+  customerName,
+  businessName,
+  reviewLink,
+  trackingPixel,
+}: {
+  customerName: string;
+  businessName: string;
+  reviewLink: string;
+  trackingPixel: string;
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Invite</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 40px 0; margin: 0;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+    <tr>
+      <td style="padding: 40px 40px 0 40px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div style="display: inline-block; background: #1e293b; color: white; padding: 8px 16px; border-radius: 8px; font-size: 20px; font-weight: bold;">
+            ${businessName}
+          </div>
+        </div>
+        
+        <h1 style="color: #0f172a; font-size: 24px; font-weight: bold; margin: 0 0 12px 0; text-align: center;">
+          How was your experience?
+        </h1>
+        
+        <p style="color: #475569; font-size: 16px; line-height: 1.6; text-align: center; margin: 0 0 32px 0;">
+          Hi ${customerName}, we'd love to hear about your recent visit to <strong>${businessName}</strong>.
+        </p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td style="padding: 0 40px 32px 40px;">
+        <div style="text-align: center;">
+          <a href="${reviewLink}" 
+             style="display: inline-block; background: #2563eb; color: white; padding: 14px 48px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 16px;">
+            Leave a Review
+          </a>
+        </div>
+        
+        <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 24px 0 0 0;">
+          This link expires in 7 days. If you didn't visit ${businessName}, please ignore this email.
+        </p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td style="padding: 16px 40px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
+          ${businessName} verified feedback channel &bull; Rewakely &copy; 2026
+        </p>
+        <!-- Tracking Pixel -->
+        ${trackingPixel}
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+
+
+
 // -------------------- LAZY CLIENTS --------------------
 let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient() {
@@ -959,6 +1034,43 @@ app.post('/api/user/auth', async (req, res) => {
   }
 });
 
+
+// ─── WAITLIST ENDPOINT ──────────────────────────────────────────────
+
+app.post('/api/waitlist', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  try {
+    // Check if already on waitlist
+    const { data: existing } = await supabaseServiceClient
+      .from('premium_waitlist')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({ success: true, message: 'Already on waitlist' });
+    }
+
+    // Add to waitlist
+    await supabaseServiceClient
+      .from('premium_waitlist')
+      .insert([{
+        email: email.trim(),
+        created_at: new Date().toISOString(),
+      }]);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Waitlist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/verify', async (req, res) => {
   const { token } = req.query;
 
@@ -1516,13 +1628,13 @@ You are a data extraction assistant. Extract customer information from the follo
 Extract:
 - customer_name (full name, string)
 - phone_number (normalize to E.164 format: +1XXXXXXXXXX for US numbers, e.g. +15551234567)
-- visit_date (normalize to YYYY-MM-DD format, e.g. 2026-06-20). IMPORTANT: The current year is 2026. If the text mentions a date without a year, assume it is in the year 2026. For example, "June 26" should become "2026-06-26". Use the current year 2026 for all dates unless a specific year is mentioned.
+- email (email address, string – if available)
+- visit_date (normalize to YYYY-MM-DD format, e.g. 2026-06-20)
 
 Rules:
-- Return ONLY a valid JSON array of objects with exactly these three fields.
+- Return ONLY a valid JSON array of objects with exactly these four fields.
 - If a field cannot be found, use null for that field.
 - Do NOT include any explanation, markdown, or text outside the JSON array.
-- Each customer is a separate line or entry in the text.
 
 Text to parse:
 """
@@ -3446,7 +3558,7 @@ app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'No customers provided' });
   }
 
-  // Get the user's current send_delay from the profile
+  // Get the user's current send_delay
   const { data: profile, error: profErr } = await supabaseServiceClient
     .from('profiles')
     .select('send_delay')
@@ -3458,41 +3570,104 @@ app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch user settings' });
   }
 
-  const delay = profile?.send_delay ?? 2; // fallback to 2 days
+  const delay = profile?.send_delay ?? 2;
 
   const inserted: any[] = [];
+  const errors: any[] = [];
+
   for (const cust of customers) {
+    // ─── DETERMINE TYPE BASED ON AVAILABLE DATA ──────────────────
+    let type = 'sms';
+    let phoneNumber = cust.phone_number || null;
+    let email = cust.email || null;
+
+    // If no phone number but has email → use email
+    if (!phoneNumber && email) {
+      type = 'email';
+    }
+    // If no phone number and no email → skip this customer
+    else if (!phoneNumber && !email) {
+      console.warn('Skipping customer with no contact info:', cust);
+      errors.push({ customer: cust, error: 'No phone or email provided' });
+      continue;
+    }
+
+    // If type is 'sms' but no phone number → skip
+    if (type === 'sms' && !phoneNumber) {
+      console.warn('Skipping SMS customer with no phone number:', cust);
+      errors.push({ customer: cust, error: 'Phone number required for SMS' });
+      continue;
+    }
+
+    // If type is 'email' but no email → skip
+    if (type === 'email' && !email) {
+      console.warn('Skipping email customer with no email:', cust);
+      errors.push({ customer: cust, error: 'Email required for email invite' });
+      continue;
+    }
+
     const visitDate = cust.visit_date ? new Date(cust.visit_date) : new Date();
     const scheduledDate = new Date(visitDate);
     scheduledDate.setDate(scheduledDate.getDate() + delay);
 
-    const { data, error } = await supabaseServiceClient
-      .from('scheduled_customers')
-      .insert([{
-        user_id: userId,
-        customer_name: cust.customer_name,
-        phone_number: cust.phone_number,
-        visit_date: cust.visit_date,
-        scheduled_at: scheduledDate.toISOString(),
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      }])
-      .select();
+    const insertData: any = {
+      user_id: userId,
+      customer_name: cust.customer_name,
+      type: type,
+      status: 'pending',
+      scheduled_at: scheduledDate.toISOString(),
+      created_at: new Date().toISOString(),
+    };
 
-    if (error) {
-      console.error('Insert scheduled customer error:', error);
-      return res.status(500).json({ error: error.message });
+    // Only add phone_number if it exists
+    if (phoneNumber) {
+      insertData.phone_number = phoneNumber;
     }
-    if (data) inserted.push(data[0]);
+
+    // Only add email if it exists
+    if (email) {
+      insertData.email = email;
+    }
+
+    // Add visit_date if provided
+    if (cust.visit_date) {
+      insertData.visit_date = cust.visit_date;
+    }
+
+    try {
+      const { data, error } = await supabaseServiceClient
+        .from('scheduled_customers')
+        .insert([insertData])
+        .select();
+
+      if (error) {
+        console.error('Insert scheduled customer error:', error);
+        errors.push({ customer: cust, error: error.message });
+        continue;
+      }
+
+      if (data) {
+        inserted.push(data[0]);
+      }
+    } catch (err: any) {
+      console.error('Insert error:', err);
+      errors.push({ customer: cust, error: err.message });
+    }
   }
 
-  // Automatically enable auto-send if it was off
-  await supabaseServiceClient
-    .from('profiles')
-    .update({ auto_send_enabled: true })
-    .eq('id', userId);
+  // ─── AUTO-ENABLE AUTO-SEND ──────────────────────────────────────
+  if (inserted.length > 0) {
+    await supabaseServiceClient
+      .from('profiles')
+      .update({ auto_send_enabled: true })
+      .eq('id', userId);
+  }
 
-  res.json({ inserted: inserted.length, customers: inserted });
+  res.json({
+    inserted: inserted.length,
+    customers: inserted,
+    errors: errors.length > 0 ? errors : undefined,
+  });
 });
 
 // 2. DELETE – Clear all pending (MUST come before :id)
@@ -3584,6 +3759,128 @@ app.get('/api/user/profile', authenticate, async (req, res) => {
   }
 });
 
+// ─── SEND EMAIL INVITE ──────────────────────────────────────────────
+
+app.post('/api/email/send-invite', async (req, res) => {
+  const userId = req.headers['x-user-id'] as string;
+  const { customerName, email } = req.body;
+
+  if (!userId) return res.status(400).json({ error: 'userId header missing' });
+  if (!customerName || !email) {
+    return res.status(400).json({ error: 'customerName and email are required' });
+  }
+
+  try {
+    // 1. Get business profile
+    const { data: profile, error: profErr } = await supabaseServiceClient
+      .from('profiles')
+      .select('business_name, contact_email, email, place_id')
+      .eq('id', userId)
+      .single();
+
+    if (profErr || !profile) {
+      return res.status(404).json({ error: 'Business profile not found' });
+    }
+
+    const businessName = profile.business_name || 'Our Business';
+    const contactEmail = profile.contact_email || profile.email;
+    const placeId = profile.place_id || '';
+
+    // 2. Generate a secure review token (reuse existing function)
+    const token = await generateReviewToken(
+      placeId,
+      contactEmail || '',
+      customerName,
+      businessName
+    );
+
+    // 3. Build the review link
+    const reviewLink = token
+      ? `https://rewakely.com/r/${token}`
+      : `https://rewakely.com/review?business=${userId}&customerName=${encodeURIComponent(customerName)}`;
+
+    // 4. Insert a record into scheduled_customers (for tracking)
+    const { data: inserted, error: insertErr } = await supabaseServiceClient
+      .from('scheduled_customers')
+      .insert([{
+        user_id: userId,
+        customer_name: customerName,
+        email: email,
+        type: 'email',
+        status: 'pending',   // will be updated to 'sent' after email is sent
+        token: token || null,
+        scheduled_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      }])
+      .select()
+      .single();
+
+    if (insertErr) {
+      console.error('Failed to save scheduled email record:', insertErr);
+      // Continue anyway – email may still send
+    }
+
+    const recordId = inserted?.id;
+
+    // 5. Build tracking pixel (1x1 transparent GIF) with the record ID
+    const trackingPixel = `<img src="https://rewakely.com/api/email/track?id=${recordId}" width="1" height="1" alt="" style="display:none;">`;
+
+    // 6. Build the email HTML
+    const htmlContent = getReviewInviteHTML({
+      customerName,
+      businessName,
+      reviewLink,
+      trackingPixel,
+    });
+
+    // 7. Send via Resend API
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${businessName} <noreply@rewakely.com>`,
+        to: [email],
+        subject: `How was your experience at ${businessName}?`,
+        html: htmlContent,
+      }),
+    });
+
+    const resendData = await resendResponse.json();
+
+    if (!resendResponse.ok) {
+      throw new Error(resendData.message || 'Failed to send email');
+    }
+
+    // 8. Update status to 'sent'
+    if (recordId) {
+      await supabaseServiceClient
+        .from('scheduled_customers')
+        .update({ status: 'sent' })
+        .eq('id', recordId);
+    }
+
+    // 9. Also log to invites table (for history)
+    await supabaseServiceClient
+      .from('invites')
+      .insert([{
+        user_id: userId,
+        customer_name: customerName,
+        email: email,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      }]);
+
+    res.json({ success: true, messageId: resendData.id });
+
+  } catch (err: any) {
+    console.error('Email send error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // ─── TOKEN REDIRECT ROUTE ──────────────────────────────────────
 app.get('/r/:token', async (req, res) => {
@@ -3631,6 +3928,98 @@ app.get('/r/:token', async (req, res) => {
   } catch (err) {
     console.error('Token redirect error:', err);
     res.status(500).send('Server error');
+  }
+});
+
+
+// ─── EMAIL TRACKING (1x1 pixel) ────────────────────────────────────
+
+app.get('/api/email/track', async (req, res) => {
+  const { id } = req.query;
+
+  if (id) {
+    try {
+      // Update the scheduled_customers record to mark as opened
+      await supabaseServiceClient
+        .from('scheduled_customers')
+        .update({ opened_at: new Date().toISOString() })
+        .eq('id', id);
+    } catch (err) {
+      console.warn('Failed to update open tracking:', err);
+    }
+  }
+
+  // Return a transparent 1x1 GIF
+  res.setHeader('Content-Type', 'image/gif');
+  // Base64 of a transparent GIF
+  const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+  res.send(pixel);
+});
+
+// ─── GET ALL INVITES (Email + SMS) ──────────────────────────────────
+
+app.get('/api/invites/all', async (req, res) => {
+  const userId = req.headers['x-user-id'] as string;
+  if (!userId) return res.status(400).json({ error: 'userId header missing' });
+
+  try {
+    // 1. Fetch from scheduled_customers (pending and sent)
+    const { data: scheduled, error: schedErr } = await supabaseServiceClient
+      .from('scheduled_customers')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (schedErr) throw schedErr;
+
+    // 2. Fetch from invites (history)
+    const { data: sentHistory, error: histErr } = await supabaseServiceClient
+      .from('invites')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sent_at', { ascending: false });
+
+    if (histErr) throw histErr;
+
+    // 3. Combine and format – with explicit types
+    const allInvites = [
+      ...(scheduled || []).map((item: any) => ({
+        id: item.id,
+        customer_name: item.customer_name,
+        phone_number: item.phone_number || null,
+        email: item.email || null,
+        type: item.type || 'sms',
+        status: item.status || 'pending',
+        scheduled_at: item.scheduled_at || item.created_at,
+        opened_at: item.opened_at || null,
+        created_at: item.created_at,
+      })),
+      ...(sentHistory || []).map((item: any) => ({
+        id: item.id,
+        customer_name: item.customer_name,
+        phone_number: item.phone_number || null,
+        email: item.email || null,
+        type: item.email ? 'email' : 'sms',
+        status: item.status || 'sent',
+        scheduled_at: item.sent_at || item.created_at,
+        opened_at: null,
+        created_at: item.created_at,
+      })),
+    ];
+
+    // Remove duplicates (by ID, keeping the most recent)
+    const seen = new Set();
+    const unique = allInvites.filter((item: any) => {
+      const key = item.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    res.json({ invites: unique });
+  } catch (err: any) {
+    console.error('Fetch invites error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -28,9 +28,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const navItems = [
+  const navItems = [ 
     { id: 'dashboard', label: 'Review Center', icon: <MessageSquare size={18} /> },
-    { id: 'sms', label: 'Send Text Invites', icon: <Smartphone size={18} /> },
+    { id: 'invites', label: 'Review Invites', icon: <Smartphone size={18} /> },
     { id: 'autopilot', label: 'Auto-Reply', icon: <ShieldCheck size={18} /> },
     { id: 'feedback', label: 'Customer Feedback', icon: <ThumbsUp size={18} /> },
     { id: 'support', label: 'Help & Support', icon: <HelpCircle size={18} /> },
