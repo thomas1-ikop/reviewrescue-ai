@@ -3794,10 +3794,8 @@ app.post('/api/email/send-invite', async (req, res) => {
       businessName
     );
 
-    // 3. Build the review link
-    const reviewLink = token
-      ? `https://rewakely.com/r/${token}`
-      : `https://rewakely.com/review?business=${userId}&customerName=${encodeURIComponent(customerName)}`;
+// ─── Build the review link (use the user ID, not the business name) ──
+const reviewLink = `https://rewakely.com/review?business=${userId}`;
 
     // 4. Insert a record into scheduled_customers (for tracking)
     const { data: inserted, error: insertErr } = await supabaseServiceClient
