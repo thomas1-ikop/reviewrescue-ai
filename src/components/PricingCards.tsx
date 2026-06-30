@@ -57,9 +57,16 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
           {plan.description}
         </p>
         
-        <div className="mt-6 flex items-baseline text-slate-900">
+        {/* ─── PRICE WITH CROSSED-OUT & DISCOUNT BADGE ───────────────────── */}
+        <div className="mt-6 flex items-center justify-center gap-3 text-slate-900">
           <span className="text-4xl font-extrabold tracking-tight">{plan.price}</span>
-          <span className="ml-1 text-sm font-semibold text-slate-500">/{plan.interval}</span>
+          <span className="text-sm font-semibold text-slate-500">/{plan.interval}</span>
+          <span className="text-sm text-slate-400 line-through font-medium">
+            {currency === 'USD' ? '$59' : '€59'}
+          </span>
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            17% OFF
+          </span>
         </div>
 
         <ul className="mt-8 space-y-4 flex-1 font-sans">
