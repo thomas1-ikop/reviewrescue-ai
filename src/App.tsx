@@ -194,6 +194,12 @@ useEffect(() => {
   return () => window.removeEventListener('showWaitlist', handler);
 }, []);
 
+useEffect(() => {
+  const handler = () => setShowWaitlist(true);
+  window.addEventListener('upgradeToPremium', handler);
+  return () => window.removeEventListener('upgradeToPremium', handler);
+}, []);
+
   // Sync state with address hash routing, perfect for sandbox refreshing
   useEffect(() => {
   // ===== NEW: Restore user from localStorage on page refresh =====

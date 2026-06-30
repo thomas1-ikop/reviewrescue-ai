@@ -365,37 +365,51 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
           </div>
 
           {!isPremium ? (
-            <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-200">
-              <Lock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-slate-700">SMS Invites Locked</p>
-              <p className="text-xs text-slate-500 mt-1">Upgrade to Premium to send SMS invites</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={smsName}
-                onChange={(e) => setSmsName(e.target.value)}
-                placeholder="Customer Name"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              />
-              <input
-                type="tel"
-                value={smsPhone}
-                onChange={(e) => setSmsPhone(e.target.value)}
-                placeholder="Phone Number"
-                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-              />
-              <button
-                onClick={handleSendSms}
-                disabled={isSendingSms}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-semibold transition"
-              >
-                {isSendingSms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {isSendingSms ? 'Sending...' : 'Send SMS Invite'}
-              </button>
-            </div>
-          )}
+  <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-200">
+    <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-3">
+      <Lock className="w-6 h-6 text-slate-400" />
+    </div>
+    <p className="text-sm font-semibold text-slate-700">SMS Invites Locked</p>
+    <p className="text-xs text-slate-500 mt-1">
+      Upgrade to Premium to send SMS review invites
+    </p>
+    <button
+      onClick={() => {
+        const event = new CustomEvent('upgradeToPremium');
+        window.dispatchEvent(event);
+      }}
+      className="mt-4 px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm"
+    >
+      Upgrade to Premium
+    </button>
+  </div>
+) : (
+  // ─── SMS FORM (Premium only) ────────────────────────────────
+  <div className="space-y-3">
+    <input
+      type="text"
+      value={smsName}
+      onChange={(e) => setSmsName(e.target.value)}
+      placeholder="Customer Name"
+      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+    />
+    <input
+      type="tel"
+      value={smsPhone}
+      onChange={(e) => setSmsPhone(e.target.value)}
+      placeholder="Phone Number"
+      className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+    />
+    <button
+      onClick={handleSendSms}
+      disabled={isSendingSms}
+      className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded-xl text-sm font-semibold transition"
+    >
+      {isSendingSms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+      {isSendingSms ? 'Sending...' : 'Send SMS Invite'}
+    </button>
+  </div>
+)}
         </div>
       </div>
 
