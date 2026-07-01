@@ -1206,7 +1206,7 @@ if (currentRoute === 'reset-password') {
       </div>
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
         <p className="text-sm text-slate-600 italic leading-relaxed">
-          "The SMS feature is a game‑changer. We get 5‑star reviews without even asking."
+          "The SMS and email feature is amazing. We get 5‑star reviews without even asking."
         </p>
         <p className="text-xs font-bold text-slate-800 mt-3">— Sarah, Dental Practice</p>
       </div>
