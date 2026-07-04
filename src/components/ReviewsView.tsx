@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { PlusCircle, MessageSquareShare, Sparkles, Pencil, CheckCircle2, ShieldX, CornerDownRight, ThumbsUp, X, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Review, Profile, ReviewSource } from '../types';
+import { SkeletonReviewsGrid, SkeletonStatsCard } from './SkeletonCard';
 
 interface ReviewsViewProps {
   profile: Profile;
@@ -314,10 +315,24 @@ export default function ReviewsView({
         </div>
 
         {isLoadingReviews ? (
-          <div className="p-12 text-center" id="reviews-loader">
-            <div className="h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-            <span className="text-xs text-slate-400 font-medium">Fetching active reviews...</span>
-          </div>
+         <div className="p-6">
+    {/* Skeleton Stats Cards */}
+    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+      <SkeletonStatsCard />
+      <SkeletonStatsCard />
+      <SkeletonStatsCard />
+      <SkeletonStatsCard />
+    </div>
+
+    {/* Skeleton Review Grid */}
+    <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-blue-200/40 shadow-sm shadow-blue-100/20 overflow-hidden">
+      <div className="px-6 py-4 border-b border-blue-100/40 flex justify-between items-center bg-blue-50/20">
+        <div className="h-5 w-32 bg-slate-200 rounded-lg animate-pulse" />
+        <div className="h-4 w-24 bg-slate-200 rounded-lg animate-pulse" />
+      </div>
+      <SkeletonReviewsGrid />
+    </div>
+  </div>
         ) : reviews.length === 0 ? (
           <div className="p-16 text-center text-slate-500 font-sans">
             <MessageSquareShare size={40} className="mx-auto text-slate-300 mb-3" />

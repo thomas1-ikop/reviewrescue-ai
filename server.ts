@@ -11,6 +11,7 @@ import { GoogleGenAI } from '@google/genai';
 import stripePackage from 'stripe';
 import twilio from 'twilio';
 import { createClient } from '@supabase/supabase-js';
+import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { Profile, Review, Invite, ReviewSource, ReviewStatus } from './src/types';
@@ -62,7 +63,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   let event;
   try {
-    // ✅ req.body is now the raw Buffer – signature verification will work!
     event = stripeClient.webhooks.constructEvent(req.body, sig, endpointSecret);
     console.log('✅ Webhook verified! Event type:', event.type);
   } catch (err: any) {
@@ -77,11 +77,28 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       const userId = session.client_reference_id || session.metadata?.userId;
       
       if (!userId) {
-        console.error('❌ No userId found');
+        console.error('❌ No userId found in checkout session');
         return res.status(400).send('Missing userId');
       }
 
-      console.log(`🔴 Updating user ${userId} to active...`);
+      // ✅ VALIDATE USER EXISTS BEFORE UPDATING
+      const { data: existingUser, error: checkError } = await supabaseServiceClient
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('❌ Error checking user:', checkError);
+        return res.status(500).json({ error: checkError.message });
+      }
+
+      if (!existingUser) {
+        console.error(`❌ User ${userId} not found in profiles table`);
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      console.log(`🔴 User ${userId} found – updating to active...`);
 
       const { data: updatedProfile, error: updateError } = await supabaseServiceClient
         .from('profiles')
@@ -135,6 +152,21 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
     res.status(500).json({ error: err.message });
   }
 });
+
+
+// ─── RATE LIMITING ──────────────────────────────────────────────
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { 
+    error: 'Too many requests, please try again later.' 
+  },
+  standardHeaders: true, // Send rate limit info in headers
+  legacyHeaders: false, // Disable X-RateLimit-* headers
+});
+
+// Apply to all API routes
+app.use('/api/', limiter);
 
 
 app.use(express.json({
@@ -377,7 +409,6 @@ async function getProfile(userId: string) {
     const { data: authUser, error: authError } = await supabaseServiceClient
       .auth.admin.getUserById(userId);
     
-    // If user doesn't exist in auth, throw an error
     if (authError || !authUser) {
       console.warn(`[Profile] User ${userId} not found in auth`);
       throw new Error('User not found');
@@ -387,42 +418,21 @@ async function getProfile(userId: string) {
     throw new Error('Invalid user session');
   }
 
-  // THEN: Check if profile exists
+  // THEN: Fetch the profile – DO NOT CREATE ONE
   const { data, error } = await supabaseClient
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .maybeSingle();
   
-  if (error && error.code !== 'PGRST116') {
+  if (error) {
     throw new Error(`Profile fetch failed: ${error.message}`);
   }
 
-  // If profile doesn't exist, create one
+  // If profile doesn't exist, throw an error instead of creating one
   if (!data) {
-    console.log(`[Profile] Creating new profile for user: ${userId}`);
-    const defaultProfile = {
-      id: userId,
-      email: '',
-      business_name: 'My Business', // ← Change this to something generic
-      industry: '',
-      tone: 'Friendly',
-      subscription_status: 'inactive',
-      subscription_plan: 'pro',
-      onboarded: false,
-      tour_completed: false,
-      verified: false,
-      created_at: new Date().toISOString()
-    };
-    try {
-      await (supabaseServiceClient || supabaseClient)
-        .from('profiles')
-        .insert([defaultProfile]);
-      return { data: defaultProfile, isFallback: false };
-    } catch (insertErr: any) {
-      console.warn('Failed to insert default profile:', insertErr.message || insertErr);
-      throw new Error('Failed to create profile');
-    }
+    console.warn(`[Profile] No profile found for user ${userId}`);
+    throw new Error('Profile not found. Please complete signup.');
   }
 
   return { data, isFallback: false };
@@ -1699,9 +1709,11 @@ ${rawText}
 let autoSendEnabledGlobally = true; // This is the state of the toggle
 
 
+
 // ──────────────────────────────────────────────────────────────
 // AUTO‑SEND SCHEDULER – runs every hour
 // ──────────────────────────────────────────────────────────────
+
 setInterval(async () => {
   console.log('🔄 Running auto-send scheduler...');
 
@@ -1737,7 +1749,6 @@ setInterval(async () => {
 
       if (profErr || !profile) {
         console.error(`Failed to fetch profile for user ${cust.user_id}:`, profErr);
-        // Mark as failed so we don't retry forever
         await supabaseServiceClient
           .from('scheduled_customers')
           .update({ status: 'failed' })
@@ -1748,7 +1759,7 @@ setInterval(async () => {
       const business = profile.business_name || 'Our Business';
       const contactEmail = profile.contact_email || profile.email;
       if (!contactEmail) {
-        console.warn(`Skipping SMS for ${cust.customer_name} – no contact email for user ${cust.user_id}`);
+        console.warn(`Skipping invite for ${cust.customer_name} – no contact email for user ${cust.user_id}`);
         await supabaseServiceClient
           .from('scheduled_customers')
           .update({ status: 'failed' })
@@ -1757,64 +1768,99 @@ setInterval(async () => {
       }
 
       const placeId = profile.place_id || 'ChIJN1t_tDeuEmsRUsoyG83frY4';
-      // ─── GENERATE SHORT TOKEN ──────────────────────────────────────
-const token = await generateReviewToken(placeId, contactEmail, cust.customer_name, business);
-
-let reviewLink: string;
-if (token) {
-  reviewLink = `https://rewakely.com/r/${token}`;
-} else {
-  console.warn(`Token generation failed for ${cust.customer_name} – using fallback long URL`);
-  reviewLink = `https://rewakely.com/review?business=${encodeURIComponent(business)}&placeId=${encodeURIComponent(placeId)}&email=${encodeURIComponent(contactEmail)}&customerName=${encodeURIComponent(cust.customer_name)}`;
-}
-
-const customMessage = `Hi ${cust.customer_name}, ${business} values your feedback. Please review: ${reviewLink}. If you didn't visit, please ignore. Have a great day!`;
       
-      // ─── REAL SMS via Signal House ───────────────────────────
-      const apiKey = process.env.SIGNALHOUSE_API_KEY;
-      const fromNumber = process.env.SIGNALHOUSE_PHONE_NUMBER;
-
-      const formatPhoneNumber = (num: string) => {
-        return num.replace(/[^0-9]/g, '').slice(-11);
-      };
-
-      const formattedPhone = formatPhoneNumber(cust.phone_number);
-      const formattedFrom = formatPhoneNumber(fromNumber || '');
+      // ─── BUILD REVIEW LINK ──────────────────────────────────────
+      const reviewLink = `https://rewakely.com/review?business=${cust.user_id}&customerName=${encodeURIComponent(cust.customer_name)}`;
 
       let sendSuccess = false;
 
-      if (!apiKey || !fromNumber) {
-        console.warn(`⚠️ Signal House credentials missing – SMS for ${cust.customer_name} not sent`);
-      } else {
+      // ─── SEND BASED ON TYPE ──────────────────────────────────────
+      if (cust.type === 'email') {
+        // ─── SEND EMAIL ────────────────────────────────────────────
+        const customMessage = `Hi ${cust.customer_name}, ${business} values your feedback. Please review: ${reviewLink}`;
+        const htmlContent = getReviewInviteHTML({
+          customerName: cust.customer_name,
+          businessName: business,
+          reviewLink,
+          trackingPixel: '', // No tracking for auto-send for now
+        });
+
         try {
-          const response = await fetch('https://api.signalhouse.io/message/sms', {
+          const response = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
+              'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              senderPhoneNumber: formattedFrom,
-              recipientPhoneNumber: [formattedPhone],
-              messageBody: customMessage
-            })
+              from: `${business} <noreply@rewakely.com>`,
+              to: [cust.email],
+              subject: `How was your experience at ${business}?`,
+              html: htmlContent,
+            }),
           });
 
           const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.message || 'Signal House send failed');
+          if (response.ok) {
+            console.log(`✅ Auto-send: Email sent to ${cust.customer_name} (${cust.email})`);
+            sendSuccess = true;
+          } else {
+            console.error(`❌ Auto-send email failed for ${cust.customer_name}:`, data);
+            sendSuccess = false;
           }
-
-          console.log(`✅ Auto-send: SMS sent successfully to ${cust.customer_name} (${formattedPhone})`);
-          sendSuccess = true;
-        } catch (err: any) {
-          console.error(`❌ Auto-send failed for ${cust.customer_name}:`, err);
+        } catch (err) {
+          console.error(`❌ Auto-send email error for ${cust.customer_name}:`, err);
           sendSuccess = false;
+        }
+
+      } else {
+        // ─── SEND SMS ──────────────────────────────────────────────
+        const customMessage = `Hi ${cust.customer_name}, ${business} values your feedback. Please review: ${reviewLink}. If you didn't visit, please ignore.`;
+        
+        const apiKey = process.env.SIGNALHOUSE_API_KEY;
+        const fromNumber = process.env.SIGNALHOUSE_PHONE_NUMBER;
+
+        const formatPhoneNumber = (num: string) => {
+          return num.replace(/[^0-9]/g, '').slice(-11);
+        };
+
+        const formattedPhone = formatPhoneNumber(cust.phone_number);
+        const formattedFrom = formatPhoneNumber(fromNumber || '');
+
+        if (!apiKey || !fromNumber) {
+          console.warn(`⚠️ Signal House credentials missing – SMS for ${cust.customer_name} not sent`);
+          sendSuccess = false;
+        } else {
+          try {
+            const response = await fetch('https://api.signalhouse.io/message/sms', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                senderPhoneNumber: formattedFrom,
+                recipientPhoneNumber: [formattedPhone],
+                messageBody: customMessage
+              })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+              console.log(`✅ Auto-send: SMS sent to ${cust.customer_name} (${formattedPhone})`);
+              sendSuccess = true;
+            } else {
+              console.error(`❌ Auto-send SMS failed for ${cust.customer_name}:`, data);
+              sendSuccess = false;
+            }
+          } catch (err) {
+            console.error(`❌ Auto-send SMS error for ${cust.customer_name}:`, err);
+            sendSuccess = false;
+          }
         }
       }
 
-      // ─── UPDATE STATUS BASED ON SEND RESULT ──────────────────
-      // 👇 THIS IS WHERE THE CODE GOES
+      // ─── UPDATE STATUS ──────────────────────────────────────────
       const status = sendSuccess ? 'sent' : 'failed';
 
       await supabaseServiceClient
@@ -1822,16 +1868,17 @@ const customMessage = `Hi ${cust.customer_name}, ${business} values your feedbac
         .update({ status: status })
         .eq('id', cust.id);
 
-      // If sent successfully, also log to invites table for history
+      // If sent successfully, log to invites table
       if (sendSuccess) {
         await supabaseServiceClient
           .from('invites')
           .insert([{
             user_id: cust.user_id,
             customer_name: cust.customer_name,
-            phone_number: cust.phone_number,
+            phone_number: cust.phone_number || null,
+            email: cust.email || null,
             status: 'sent',
-            sent_at: new Date().toISOString()
+            sent_at: new Date().toISOString(),
           }]);
       }
     }
@@ -2728,39 +2775,36 @@ async function syncGoogleReviewsForUser(userId: string) {
     const locationId = tokenModel.location_id || 'loc_gmb_default_718';
 
     let fetchedReviews: any[] = [];
-    let isSimulatedFetch = false;
 
-    try {
-      const response = await fetch(`https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
+try {
+  const response = await fetch(`https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.reviews) {
-          fetchedReviews = result.reviews.map((r: any) => ({
-            id: r.reviewId,
-            customer_name: r.reviewer?.displayName || 'Anonymous',
-            rating: r.starRating === 'FIVE' ? 5 : r.starRating === 'FOUR' ? 4 : r.starRating === 'THREE' ? 3 : r.starRating === 'TWO' ? 2 : 1,
-            comment: r.comment || '',
-            created_at: r.createTime || new Date().toISOString()
-          }));
-        }
-      } else {
-        console.warn(`GMB API returned status ${response.status}. Using high-fidelity developer sandbox simulation.`);
-        isSimulatedFetch = true;
-      }
-    } catch (err) {
-      console.warn(`GMB connection offline: Using simulation.`, err);
-      isSimulatedFetch = true;
+  if (response.ok) {
+    const result = await response.json();
+    if (result.reviews) {
+      fetchedReviews = result.reviews.map((r: any) => ({
+        id: r.reviewId,
+        customer_name: r.reviewer?.displayName || 'Anonymous',
+        rating: r.starRating === 'FIVE' ? 5 : r.starRating === 'FOUR' ? 4 : r.starRating === 'THREE' ? 3 : r.starRating === 'TWO' ? 2 : 1,
+        comment: r.comment || '',
+        created_at: r.createTime || new Date().toISOString()
+      }));
     }
-
-    if (isSimulatedFetch) {
-  // No simulated reviews – simply return
-  console.log('[Google Sync] No real reviews available – skipping sync (no simulation)');
-  fetchedReviews = [];
-  return; // Exit early so nothing is processed
+  } else {
+    console.warn(`[Google Sync] GMB API returned status ${response.status}. Skipping sync for now.`);
+    // ✅ Gracefully exit – don't simulate
+    return;
+  }
+} catch (err) {
+  console.warn(`[Google Sync] Network error fetching reviews:`, err);
+  // ✅ Gracefully exit – don't simulate
+  return;
 }
+
+// ✅ REMOVE the isSimulatedFetch block entirely – we're not using it anymore
+// Continue with processing fetchedReviews (if any)
 
     for (const item of fetchedReviews) {
       let alreadyProcessed = false;

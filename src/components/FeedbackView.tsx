@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThumbsUp, Star, Calendar, AlertCircle } from 'lucide-react';
 import { Profile } from '../types';
+import { SkeletonFeedbackList } from './SkeletonCard';
 
 interface FeedbackSubmission {
   id: string;
@@ -124,9 +125,7 @@ export default function FeedbackView({ profile }: FeedbackViewProps) {
         </div>
 
         {isLoading ? (
-          <div className="p-12 text-center text-slate-400">Loading...</div>
-        ) : error ? (
-          <div className="p-12 text-center text-red-600">{error}</div>
+          <SkeletonFeedbackList />
         ) : submissions.length === 0 ? (
           <div className="p-12 text-center text-slate-500">
             <AlertCircle size={32} className="mx-auto text-slate-300 mb-2" />

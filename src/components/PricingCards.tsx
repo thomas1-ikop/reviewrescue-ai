@@ -43,7 +43,7 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
       description: 'Advanced features for businesses serious about reputation.',
       features: [
         'Everything in Pro Plan',
-        'SMS Review Invites (coming soon)',
+        'SMS Review Invites',
         'Website Review Widget',
         'Real-time Negative Review Alerts',
         'Monthly Analytics Report (PDF)',
