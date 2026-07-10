@@ -41,7 +41,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     label: '📅 Book a Demo', 
     icon: <Calendar size={18} />,
     external: true,
-    url: 'https://calendly.com/thomas-rewakely/30min-demo'
+    url: 'https://calendly.com/rewakely/15min'
   },
   ];
 
