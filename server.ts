@@ -2654,7 +2654,7 @@ app.post('/api/contact', async (req, res) => {
       <h1>Thanks for reaching out, ${name}!</h1>
       <p>I'm Thomas, founder of Rewakely. I'd love to show you how we can help your business.</p>
       <p><strong>Book a quick demo here:</strong></p>
-      <p><a href="https://calendly.com/thomas-rewakely/30min-demo" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">📅 Book a Demo</a></p>
+      <p><a href="https://calendly.com/rewakely/15min" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">📅 Book a Demo</a></p>
       <p>Or feel free to reply to this email directly.</p>
       <p>Looking forward to connecting!</p>
       <p>– Thomas<br>Founder, Rewakely</p>
