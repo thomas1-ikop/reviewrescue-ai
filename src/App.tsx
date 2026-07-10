@@ -950,37 +950,43 @@ if (currentRoute === 'reset-password') {
     <nav className="max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-150">
       <Logo />
       
-      <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-        <a href="#features" className="hover:text-slate-900 transition">Key Features</a>
-        <a href="#pricing" className="hover:text-slate-900 transition font-sans">Plans & Pricing</a>
-        <button 
-          onClick={() => setShowContactModal(true)} 
-          className="hover:text-slate-900 transition font-sans cursor-pointer NavLink"
-          id="landing-nav-contact-desktop"
-        >
-          Contact
-        </button>
-        {user ? (
-          <button 
-            onClick={() => setCurrentRoute('dashboard')}
-            className="rounded-xl bg-slate-900 text-white px-4.5 py-2 hover:bg-slate-800 transition"
-          >
-            Enter Dashboard
-          </button>
-        ) : (
-          <>
-            <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
-            <button 
-              onClick={() => setCurrentRoute('signup')}
-              className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm"
-            >
-              Get Started
-            </button>
-          </>
-
-          
-        )}
-      </div>
+      <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
+  <a href="#features" className="hover:text-slate-900 transition">Key Features</a>
+  <a href="#pricing" className="hover:text-slate-900 transition font-sans">Plans & Pricing</a>
+  <button 
+    onClick={() => setShowContactModal(true)} 
+    className="hover:text-slate-900 transition font-sans cursor-pointer NavLink"
+    id="landing-nav-contact-desktop"
+  >
+    Contact
+  </button>
+  {user ? (
+    <button 
+      onClick={() => setCurrentRoute('dashboard')}
+      className="rounded-xl bg-slate-900 text-white px-4.5 py-2 hover:bg-slate-800 transition"
+    >
+      Enter Dashboard
+    </button>
+  ) : (
+    <>
+      <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
+      <a
+        href="https://calendly.com/thomas-rewakely/30min-demo"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:text-slate-900 transition"
+      >
+        Book a Demo
+      </a>
+      <button 
+        onClick={() => setCurrentRoute('signup')}
+        className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm"
+      >
+        Get Started
+      </button>
+    </>
+  )}
+</div>
       <a
   href="https://calendly.com/rewakely/15min"
   target="_blank"

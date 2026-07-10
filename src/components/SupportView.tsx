@@ -6,6 +6,7 @@
 import React from 'react';
 import { HelpCircle, MessageSquare, Mail, ThumbsUp } from 'lucide-react';
 import { Profile } from '../types';
+import { Calendar } from 'lucide-react';
 
 interface SupportViewProps {
   profile: Profile;
@@ -29,6 +30,27 @@ export default function SupportView({ profile }: SupportViewProps) {
           </div>
         </div>
       </div>
+
+      {/* ─── BOOK A DEMO CARD ────────────────────────────────────── */}
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-blue-50 rounded-xl">
+          <Calendar className="w-5 h-5 text-blue-600" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-slate-800">📅 Book a Demo</h3>
+          <p className="text-xs text-slate-500">Schedule a 20-minute call with Thomas, founder of Rewakely</p>
+        </div>
+        <a
+          href="https://calendly.com/thomas-rewakely/30min-demo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
+        >
+          Book Now
+        </a>
+      </div>
+    </div>
 
       {/* Question Section */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 md:p-8 shadow-sm transition hover:shadow-md">
