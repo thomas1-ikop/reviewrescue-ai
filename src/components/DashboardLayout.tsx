@@ -1,5 +1,6 @@
 // src/components/DashboardLayout.tsx
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, } from 'react';
+import { Calendar } from 'lucide-react';
 import Logo from './Logo';
 import { 
   LayoutDashboard, MessageSquare, Smartphone, ShieldCheck, 
@@ -35,6 +36,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'feedback', label: 'Customer Feedback', icon: <ThumbsUp size={18} /> },
     { id: 'support', label: 'Help & Support', icon: <HelpCircle size={18} /> },
     { id: 'dashboardSettings', label: 'Settings', icon: <Settings size={18} /> },
+    { 
+    id: 'demo', 
+    label: '📅 Book a Demo', 
+    icon: <Calendar size={18} />,
+    external: true,
+    url: 'https://calendly.com/thomas-rewakely/30min-demo'
+  },
   ];
 
   const handleLogoutClick = () => setShowConfirmModal(true);
@@ -74,6 +82,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto relative z-10">
           {navItems.map((item) => {
+            if (item.external) {
+    return (
+      <a
+        key={item.id}
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-100/50 transition text-sm font-medium text-slate-700 hover:text-blue-600"
+      >
+        {item.icon}
+        {item.label}
+      </a>
+    );
+  }
             const isActive = currentRoute === item.id;
             return (
               <button

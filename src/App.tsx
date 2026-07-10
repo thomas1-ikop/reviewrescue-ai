@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { Calendar } from 'lucide-react';
+
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -974,8 +977,20 @@ if (currentRoute === 'reset-password') {
               Get Started
             </button>
           </>
+
+          
         )}
       </div>
+      <a
+  href="https://calendly.com/thomas-rewakely/30min-demo"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-4.5 py-2 transition shadow-sm"
+>
+  Book a Demo
+</a>
+
+      
 
       {/* Mobile Menu Icon */}
       <button className="md:hidden text-slate-700" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -1617,6 +1632,19 @@ if (currentRoute === 'reset-password') {
       </>
     )}
   </DashboardLayout>
+)}
+
+{/* ─── FLOATING BOOK A DEMO BUTTON ────────────────────────────── */}
+{user && (
+  <a
+    href="https://calendly.com/thomas-rewakely/30min-demo"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-105"
+  >
+    <Calendar size={18} />
+    <span className="font-semibold text-sm">Book a Demo</span>
+  </a>
 )}
 
     </div>

@@ -175,6 +175,15 @@ app.use(express.json({
   }
 }));
 
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+  
 // -------------------- IN-MEMORY DATABASE FALLBACK --------------------
 interface InMemDB {
   profiles: any[];
@@ -2585,6 +2594,10 @@ app.get('/api/sms/scheduled-customers', async (req, res) => {
 
 
 
+
+
+
+// Fetch feedback submissions for a business owner
 app.post('/api/contact', async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -2635,39 +2648,39 @@ app.post('/api/contact', async (req, res) => {
     return res.json({ success: true, submission: insertedRecord, savedToDb });
   }
 
-  res.json({ success: true, submission: insertedRecord, savedToDb });
-});
-
-
-// Fetch feedback submissions for a business owner
-// Fetch feedback submissions for a business owner
-app.get('/api/feedback/submissions', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) {
-    return res.status(400).json({ error: 'userId header missing' });
-  }
-
-  if (!supabaseServiceClient) {
-    return res.status(500).json({ error: 'Supabase client not initialized' });
-  }
-
+  // ─── SEND AUTO-REPLY WITH CALENDLY LINK ──────────────────────────
   try {
-    const { data, error } = await supabaseServiceClient
-      .from('feedback_submissions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    const autoReplyHtml = `
+      <h1>Thanks for reaching out, ${name}!</h1>
+      <p>I'm Thomas, founder of Rewakely. I'd love to show you how we can help your business.</p>
+      <p><strong>Book a quick demo here:</strong></p>
+      <p><a href="https://calendly.com/thomas-rewakely/30min-demo" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">📅 Book a Demo</a></p>
+      <p>Or feel free to reply to this email directly.</p>
+      <p>Looking forward to connecting!</p>
+      <p>– Thomas<br>Founder, Rewakely</p>
+    `;
 
-    if (error) {
-      console.error('Fetch feedback error:', error);
-      return res.status(500).json({ error: error.message });
-    }
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Thomas <thomas@rewakely.com>',
+        to: [email],
+        subject: `Thanks for reaching out, ${name}!`,
+        html: autoReplyHtml,
+      }),
+    });
 
-    res.json({ submissions: data || [] });
-  } catch (err) {
-    console.error('Unexpected error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.log(`✅ Auto-reply sent to ${email}`);
+  } catch (err: any) {
+    console.warn('Failed to send auto-reply email:', err.message);
+    // Don't fail the request – just log the error
   }
+
+  res.json({ success: true, submission: insertedRecord, savedToDb });
 });
 
 // -------------------- GOOGLE OAUTH & BACKGROUND SYNC --------------------
