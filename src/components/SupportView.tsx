@@ -42,7 +42,7 @@ export default function SupportView({ profile }: SupportViewProps) {
           <p className="text-xs text-slate-500">Schedule a 20-minute call with Thomas, founder of Rewakely</p>
         </div>
         <a
-          href="https://calendly.com/thomas-rewakely/30min-demo"
+          href="https://calendly.com/rewakely/15min"
           target="_blank"
           rel="noopener noreferrer"
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm"
