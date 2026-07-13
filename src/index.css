@@ -40,3 +40,34 @@ a:disabled,
   border-radius: 8px;
   transition: all 0.3s ease;
 }
+/* ─── ANIMATED GRADIENT BACKGROUND ────────────────────────────── */
+.bg-gradient-animated {
+  background: linear-gradient(-45deg, #e0e7ff, #dbeafe, #ede9fe, #e0e7ff);
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+}
+/* ─── TECH GRID BACKGROUND ──────────────────────────────────────── */
+.bg-tech {
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(37, 99, 235, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 20%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 40%, #f0f9ff 70%, #faf5ff 100%);
+  background-attachment: fixed;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── FLOATING ORBS ────────────────────────────────────────────── */
+.orb-tech {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: -5;
+  opacity: 0.6;
+}

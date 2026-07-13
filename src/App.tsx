@@ -4,9 +4,10 @@
    */
 
   import { Calendar } from 'lucide-react';
+  import {  User, CreditCard } from 'lucide-react';
 
 
-  import React, { useState, useEffect } from 'react';
+  import React, { useState, useEffect } from 'react'; 
   import { motion, AnimatePresence } from 'motion/react';
   import { 
     Menu, X, Smartphone, Settings, Shield, Activity, LogOut, ArrowRight, ArrowLeft, Lock, 
@@ -841,8 +842,53 @@
     return <ResetPasswordView />;
   }
 
+
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800 selection:bg-blue-150 selection:text-blue-800">
+  <div className="min-h-screen bg-tech flex flex-col text-slate-800 selection:bg-blue-200 selection:text-blue-900 relative">
+      {/* ─── FLOATING ORBS (VISIBLE) ──────────────────────────────────── */}
+<div className="fixed inset-0 pointer-events-none overflow-hidden -z-5">
+  <motion.div
+    animate={{
+      x: [0, 80, -40, 0],
+      y: [0, -60, 30, 0],
+      scale: [1, 1.2, 0.8, 1],
+    }}
+    transition={{
+      duration: 20,
+      repeat: Infinity,
+      ease: "easeInOut",
+    }}
+    className="absolute top-[-100px] right-[-50px] w-[400px] h-[400px] bg-blue-500/25 rounded-full blur-3xl"
+  />
+  <motion.div
+    animate={{
+      x: [0, -60, 40, 0],
+      y: [0, 50, -30, 0],
+      scale: [1, 0.8, 1.2, 1],
+    }}
+    transition={{
+      duration: 25,
+      repeat: Infinity,
+      ease: "easeInOut",
+      delay: 3,
+    }}
+    className="absolute bottom-[-50px] left-[-50px] w-[400px] h-[400px] bg-purple-500/25 rounded-full blur-3xl"
+  />
+  <motion.div
+    animate={{
+      x: [0, -40, 60, 0],
+      y: [0, 30, -50, 0],
+      scale: [1, 1.1, 0.9, 1],
+    }}
+    transition={{
+      duration: 30,
+      repeat: Infinity,
+      ease: "easeInOut",
+      delay: 6,
+    }}
+    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-400/15 rounded-full blur-3xl"
+  />
+</div>
         
         {/* Dynamic Toast Notifications */}
         <AnimatePresence>
@@ -944,7 +990,7 @@
 
         {/* LANDING PAGE GRID VIEW */}
         {currentRoute === 'landing' && (
-    <div className="flex-1 flex flex-col bg-white">
+    <div className="flex-1 flex flex-col">
       
       {/* Header */}
       <nav className="max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-150">
@@ -970,7 +1016,7 @@
     ) : (
       <>
         <a
-          href="https://calendly.com/thomas-rewakely/30min-demo"
+          href="https://calendly.com/rewakely/15min"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-slate-900 transition"
@@ -1030,87 +1076,175 @@
         </div>
       )}
 
-      {/* Hero Section */}
-      <header className="max-w-5xl w-full mx-auto px-6 pt-16 pb-20 text-center space-y-6">
-        <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-100">
-          <Sparkles size={14} /> Driven by Rewakely AI Intelligence
-        </div>
-        <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.08] max-w-4xl mx-auto font-sans">
-          Rewakely – Turn Every Review Into a <span className="text-blue-600">5-Star Business Rating</span>
-        </h1>
-        <p className="text-md md:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
-          Automate replies, send text review reminders, and leverage auto-reply for Google. Keep operations clean, friendly and highly professional.
-        </p>
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button
-            onClick={() => setCurrentRoute('signup')}
-            className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-semibold text-sm px-8 py-4 shadow-md flex items-center justify-center gap-2 group transition"
-          >
-            Get Started Instantly
-            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-          </button>
-          <a
-            href="#pricing"
-            className="w-full sm:w-auto rounded-xl border border-slate-300 text-slate-650 font-semibold text-sm px-8 py-4 text-center hover:bg-slate-50 transition"
-          >
-            See Plans & Pricing
-          </a>
-        </div>
-      </header>
+      {/* ─── HERO SECTION (TECH) ────────────────────────────────────────── */}
+<header className="relative max-w-5xl w-full mx-auto px-6 pt-16 pb-20 text-center">
+  
+  {/* Badge */}
+  <motion.div
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6 }}
+    className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200/50 relative z-10"
+  >
+    <Sparkles size={14} className="animate-pulse text-blue-500" />
+    AI-Powered Reputation Management
+  </motion.div>
 
-      {/* Features cards */}
-      <section id="features" className="bg-slate-50 border-y border-slate-150 py-20 px-6">
-        <div className="max-w-6xl w-full mx-auto">
-          <div className="text-center space-y-3 mb-16">
-            <span className="text-xs font-extrabold text-blue-500 uppercase tracking-widest block">Core Products</span>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">The Modern Small Business Review System</h2>
+  {/* Headline */}
+  <motion.h1
+    initial={{ opacity: 0, y: 30 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.8, delay: 0.2 }}
+    className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.08] max-w-4xl mx-auto mt-4 relative z-10"
+  >
+    Rewakely – Turn Every Review Into a{' '}
+    <span className="text-blue-600 relative">
+      5-Star Business Rating
+      <motion.span
+        initial={{ width: 0 }}
+        animate={{ width: '100%' }}
+        transition={{ duration: 1, delay: 1 }}
+        className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+      />
+    </span>
+  </motion.h1>
+
+  {/* Sub-headline */}
+  <motion.p
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.5 }}
+    className="text-md md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed mt-4 relative z-10"
+  >
+    Automate replies, send review invites, and auto-reply to Google – all in{' '}
+    <span className="font-bold text-blue-600">5 minutes</span>.
+  </motion.p>
+
+  {/* Live Counter */}
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.5, delay: 0.8 }}
+    className="flex items-center justify-center gap-3 mt-4 relative z-10"
+  >
+    <span className="relative flex h-2 w-2">
+      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+    </span>
+    <span className="text-sm font-medium text-slate-600">
+      <span className="font-extrabold text-emerald-600">AI-powered</span> replies in seconds
+    </span>
+  </motion.div>
+
+  {/* CTA Buttons */}
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6, delay: 0.6 }}
+    className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
+  >
+    <button
+      onClick={() => setCurrentRoute('signup')}
+      className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
+    >
+      Get Started Instantly
+      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+    </button>
+    <a
+      href="https://calendly.com/rewakely/15min"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
+    >
+      <Calendar size={16} />
+      Book a Demo
+    </a>
+  </motion.div>
+</header>
+
+
+
+      {/* ─── FEATURES WITH SCROLL ANIMATION ───────────────────────────── */}
+<section id="features" className="relative py-20 px-6">
+  <div className="max-w-6xl w-full mx-auto relative z-10">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+      className="text-center space-y-3 mb-16"
+    >
+      <span className="text-xs font-extrabold text-blue-500 uppercase tracking-widest block">Core Products</span>
+      <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">The Modern Small Business Review System</h2>
+    </motion.div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {[
+        {
+          title: 'AI‑Powered Replies',
+          desc: 'Paste reviews from any custom source. Gemini generates high-context, professional responses in seconds.',
+          icon: <Sparkles className="text-blue-500 h-6 w-6" />,
+          delay: 0.1,
+        },
+        {
+          title: 'Text Invite Generator',
+          desc: 'Collect more reviews instantly by sending personalized request texts directly to customers.',
+          icon: <Smartphone className="text-blue-500 h-6 w-6" />,
+          delay: 0.2,
+        },
+        {
+          title: 'Auto-Reply to Positive Reviews',
+          desc: 'Sync real reviews autonomously. Auto-reply to 4 and 5-star comments; reviews with 1 to 3 stars are highlighted for manual response.',
+          icon: <Shield className="text-blue-500 h-6 w-6" />,
+          delay: 0.3,
+        },
+      ].map((feat, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: feat.delay }}
+          viewport={{ once: true }}
+          className="p-8 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-150 shadow-sm transition hover:shadow-md hover:-translate-y-1"
+        >
+          <div className="rounded-xl bg-blue-50 p-2.5 w-max mb-6">
+            {feat.icon}
           </div>
+          <h3 className="font-bold text-slate-900 text-lg leading-tight mb-2">{feat.title}</h3>
+          <p className="text-sm text-slate-500 leading-relaxed font-sans">{feat.desc}</p>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                title: 'AI‑Powered Replies',
-                desc: 'Paste reviews from any custom source. Gemini generates high-context, professional responses in seconds.',
-                icon: <Sparkles className="text-blue-500 h-6 w-6" />
-              },
-              {
-                title: 'Text Invite Generator',
-                desc: 'Collect more reviews instantly by sending personalized request texts directly to customers.',
-                icon: <Smartphone className="text-blue-500 h-6 w-6" />
-              },
-              {
-                title: 'Auto-Reply to Positive Reviews',
-                desc: 'Sync real reviews autonomously. Auto-reply to 4 and 5-star comments; reviews with 1 to 3 stars are highlighted for manual response (Pro plan).',
-                icon: <Shield className="text-blue-500 h-6 w-6" />
-              }
-            ].map((feat, i) => (
-              <div key={i} className="p-8 rounded-2xl bg-white border border-slate-150 shadow-sm transition hover:shadow-md">
-                <div className="rounded-xl bg-blue-50 p-2.5 w-max mb-6">
-                  {feat.icon}
-                </div>
-                <h3 className="font-bold text-slate-900 text-lg leading-tight mb-2">{feat.title}</h3>
-                <p className="text-sm text-slate-500 leading-relaxed font-sans">{feat.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ✅ COMPARISON SECTION – Without vs With Rewakely */}
-      <section className="py-20 px-6 bg-white border-y border-slate-150">
-        <div className="max-w-6xl w-full mx-auto">
-          <div className="text-center space-y-3 mb-16">
+      {/* ✅ COMPARISON SECTION (ANIMATED) – Without vs With Rewakely */}
+      <section className="relative py-20 px-6">
+  <div className="max-w-6xl w-full mx-auto relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center space-y-3 mb-16"
+          >
             <span className="text-xs font-extrabold text-blue-500 uppercase tracking-widest block">See the Difference</span>
             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Without Rewakely vs. With Rewakely</h2>
             <p className="text-sm text-slate-500 max-w-xl mx-auto font-sans">
               Stop losing customers to bad reviews. Let Rewakely protect your reputation automatically.
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
             {/* LEFT COLUMN – Without Rewakely */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition"
+            >
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2.5 rounded-xl bg-red-50 text-red-600">
                   <XCircle size={24} />
@@ -1140,10 +1274,16 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* RIGHT COLUMN – With Rewakely */}
-            <div className="bg-white rounded-2xl border border-blue-200 shadow-md hover:shadow-lg transition relative overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              viewport={{ once: true }}
+              className="bg-white rounded-2xl border border-blue-200 shadow-md hover:shadow-lg transition relative overflow-hidden"
+            >
               {/* Highlight Badge */}
               <div className="absolute top-0 right-0 bg-blue-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-bl-xl">
                 Rewakely Active
@@ -1183,56 +1323,126 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
           </div>
         </div>
       </section>
 
-      {/* ─── SOCIAL PROOF ────────────────────────────────────────── */}
-  <section className="py-16 px-6 bg-slate-50 border-y border-slate-150">
-    <div className="max-w-6xl mx-auto">
-      <h2 className="text-2xl font-bold text-slate-900 text-center mb-12">
-        Trusted by Business Owners Like You
+      {/* ─── TRUST + TESTIMONIALS (MERGED) ───────────────────────────── */}
+<section className="relative py-20 px-6">
+  <div className="max-w-6xl mx-auto relative z-10">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+      className="text-center mb-12"
+    >
+      <span className="text-xs font-extrabold text-blue-500 uppercase tracking-widest block">Trusted by Business Owners</span>
+      <h2 className="text-3xl font-extrabold text-slate-900 mt-2">
+        Why Businesses Choose Rewakely
       </h2>
+      <p className="text-sm text-slate-500 max-w-xl mx-auto mt-2">
+        No contracts. 5-minute setup. AI that actually sounds like you.
+      </p>
+    </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-    <div>
-      <p className="text-3xl font-black text-blue-600">2 Seconds</p>
-      <p className="text-sm text-slate-500 mt-1">AI Reply Generation</p>
-    </div>
-    <div>
-      <p className="text-3xl font-black text-blue-600">Unlimited</p>
-      <p className="text-sm text-slate-500 mt-1">AI Replies Included</p>
-    </div>
-    <div>
-      <p className="text-3xl font-black text-blue-600">Save Hours</p>
-      <p className="text-sm text-slate-500 mt-1">Weekly With Automation</p>
-    </div>
-  </div>
+    {/* ─── 3 STATS ────────────────────────────────────────────────── */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+      viewport={{ once: true }}
+      className="grid grid-cols-1 md:grid-cols-3 gap-8"
+    >
+      <div className="text-center p-6 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition shadow-sm hover:shadow-md">
+        <p className="text-4xl font-black text-blue-600">2s</p>
+        <p className="text-sm font-bold text-slate-800 mt-1">Average Reply Time</p>
+        <p className="text-xs text-slate-400 mt-1">AI generates responses instantly</p>
+      </div>
+      <div className="text-center p-6 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition shadow-sm hover:shadow-md">
+        <p className="text-4xl font-black text-blue-600">∞</p>
+        <p className="text-sm font-bold text-slate-800 mt-1">Unlimited AI Replies</p>
+        <p className="text-xs text-slate-400 mt-1">No caps, no extra charges</p>
+      </div>
+      <div className="text-center p-6 bg-white rounded-2xl border border-slate-200 hover:border-blue-200 transition shadow-sm hover:shadow-md">
+        <p className="text-4xl font-black text-blue-600">5min</p>
+        <p className="text-sm font-bold text-slate-800 mt-1">Setup Time</p>
+        <p className="text-xs text-slate-400 mt-1">Get started in minutes</p>
+      </div>
+    </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <p className="text-sm text-slate-600 italic leading-relaxed">
-            "What used to take hours now takes seconds. Rewakely is a game‑changer."
-          </p>
-          <p className="text-xs font-bold text-slate-800 mt-3">— Mike, HVAC Contractor</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <p className="text-sm text-slate-600 italic leading-relaxed">
-            "The SMS and email feature is amazing. We get 5‑star reviews without even asking."
-          </p>
-          <p className="text-xs font-bold text-slate-800 mt-3">— Sarah, Dental Practice</p>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-          <p className="text-sm text-slate-600 italic leading-relaxed">
-            "Auto‑reply to Google reviews is my favorite feature. I never miss a review now."
-          </p>
-          <p className="text-xs font-bold text-slate-800 mt-3">— John, Roofing Company</p>
-        </div>
+    {/* ─── 4 TRUST BADGES ────────────────────────────────────────── */}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.4 }}
+      viewport={{ once: true }}
+      className="mt-8 flex flex-wrap justify-center gap-4"
+    >
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md transition">
+        <Lock size={16} className="text-slate-600" />
+        <span className="text-sm font-medium text-slate-700">No Contracts</span>
+      </div>
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md transition">
+        <MapPin size={16} className="text-slate-600" />
+        <span className="text-sm font-medium text-slate-700">US-Based Support</span>
+      </div>
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md transition">
+        <Sparkles size={16} className="text-blue-600" />
+        <span className="text-sm font-medium text-slate-700">AI-Powered</span>
+      </div>
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md transition">
+        <CreditCard size={16} className="text-slate-600" />
+        <span className="text-sm font-medium text-slate-700">Cancel Anytime</span>
+      </div>
+    </motion.div>
+
+    {/* ─── DIVIDER ────────────────────────────────────────────────── */}
+    <div className="relative my-16">
+      <div className="absolute inset-0 flex items-center">
+        <div className="w-full border-t border-slate-200" />
+      </div>
+      <div className="relative flex justify-center">
+        <span className="px-4 bg-white/50 text-sm text-slate-400 font-medium">Real Feedback</span>
       </div>
     </div>
-  </section>
+
+    {/* ─── TESTIMONIALS ────────────────────────────────────────────── */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {[
+        {
+          quote: "What used to take hours now takes seconds. Rewakely is a game‑changer.",
+          author: "— Mike, HVAC Contractor",
+          delay: 0.1,
+        },
+        {
+          quote: "The SMS and email feature is amazing. We get 5‑star reviews without even asking.",
+          author: "— Sarah, Dental Practice",
+          delay: 0.2,
+        },
+        {
+          quote: "Auto‑reply to Google reviews is my favorite feature. I never miss a review now.",
+          author: "— John, Roofing Company",
+          delay: 0.3,
+        },
+      ].map((item, idx) => (
+        <motion.div
+          key={idx}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: item.delay }}
+          viewport={{ once: true }}
+          className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition"
+        >
+          <p className="text-sm text-slate-600 italic leading-relaxed">"{item.quote}"</p>
+          <p className="text-xs font-bold text-slate-800 mt-3">{item.author}</p>
+        </motion.div>
+      ))}
+    </div>
+  </div>
+</section>
 
       {/* Pricing cards columns */}
       <section id="pricing" className="py-20 px-6 max-w-7xl w-full mx-auto">
