@@ -28,23 +28,28 @@ export default function FeedbackView({ profile }: FeedbackViewProps) {
 
   useEffect(() => {
     const fetchFeedback = async () => {
-      setIsLoading(true);
-      try {
-        const res = await fetch('/api/feedback/submissions', {
-          headers: { 'x-user-id': profile.id }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setSubmissions(data.submissions || []);
-        } else {
-          setError(data.error || 'Failed to load feedback');
-        }
-      } catch (err) {
-        setError('Network error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  setIsLoading(true);
+  try {
+    console.log('🔍 Fetching feedback for user:', profile.id);
+    const res = await fetch('/api/feedback/submissions', {
+      headers: { 'x-user-id': profile.id }
+    });
+    console.log('📡 Response status:', res.status);
+    const data = await res.json();
+    console.log('📋 Full API response:', data);
+    if (res.ok) {
+      setSubmissions(data.submissions || []);
+      console.log('✅ Submissions set:', data.submissions?.length || 0);
+    } else {
+      setError(data.error || 'Failed to load feedback');
+    }
+  } catch (err) {
+    console.error('❌ Network error:', err);
+    setError('Network error');
+  } finally {
+    setIsLoading(false);
+  }
+};
     fetchFeedback();
   }, [profile.id]);
 

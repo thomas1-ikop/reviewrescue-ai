@@ -3328,6 +3328,41 @@ app.get('/api/autopilot/stats', async (req, res) => {
   }
 });
 
+// ─── GET FEEDBACK SUBMISSIONS ──────────────────────────────────────
+app.get('/api/feedback/submissions', async (req, res) => {
+  const userId = req.headers['x-user-id'] as string;
+  
+  console.log('🔍 [Feedback] Fetching for user:', userId);
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId header missing' });
+  }
+
+  if (!supabaseServiceClient) {
+    return res.status(500).json({ error: 'Supabase client not initialized' });
+  }
+
+  try {
+    const { data, error } = await supabaseServiceClient
+      .from('feedback_submissions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ [Feedback] Fetch error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log(`✅ [Feedback] Found ${data?.length || 0} submissions`);
+    res.json({ submissions: data || [] });
+  } catch (err) {
+    console.error('❌ [Feedback] Unexpected error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 app.post('/api/google/connect', (req, res) => {
   const userId = req.body.userId || req.headers['x-user-id'];
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
