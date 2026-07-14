@@ -73,6 +73,8 @@
 
     const [showWaitlist, setShowWaitlist] = useState(false);
 
+    const [rememberMe, setRememberMe] = useState(false);
+
     
     // Logged-in User Context
     const [user, setUser] = useState<Profile | null>(null);
@@ -205,101 +207,108 @@
   }, []);
 
     // Sync state with address hash routing, perfect for sandbox refreshing
-    useEffect(() => {
-    // ===== NEW: Restore user from localStorage on page refresh =====
-    const storedUser = localStorage.getItem('reviewrescue_user');
+   useEffect(() => {
+  // ===== RESTORE USER FROM LOCALSTORAGE (WITH REMEMBER ME) =====
+  const storedUser = localStorage.getItem('reviewrescue_user');
+  const rememberMeFlag = localStorage.getItem('reviewrescue_remember_me');
 
+  // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
+  const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
+  if (publicRoutes.includes(currentRoute)) {
+    return; // Don't auto-login on public pages
+  }
 
-    // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
-    const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
-    if (publicRoutes.includes(currentRoute)) {
-      return; // Don't auto-login on public pages
+  // ─── AUTO-LOGIN ONLY IF "REMEMBER ME" IS CHECKED ──────────────
+  if (storedUser && rememberMeFlag === 'true') {
+    try {
+      const parsed = JSON.parse(storedUser);
+      // Immediately set the user to avoid the "logged out" flash
+      setUser(parsed);
+      setCurrentRoute('dashboard');
+      
+      // Then fetch the latest profile from the database
+      fetch('/api/user/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manualUserId: parsed.id })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.profile) {
+            setUser(data.profile);
+            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+          } else {
+            // If the API doesn't return a profile, the user might have been deleted – log them out
+            localStorage.removeItem('reviewrescue_user');
+            localStorage.removeItem('reviewrescue_remember_me');
+            setUser(null);
+            setCurrentRoute('landing');
+          }
+        })
+        .catch(err => {
+          console.error('Failed to refresh user profile:', err);
+          // Keep the stored user as fallback
+        });
+    } catch (err) {
+      console.error('Failed to parse stored user:', err);
+      localStorage.removeItem('reviewrescue_user');
+      localStorage.removeItem('reviewrescue_remember_me');
+      setUser(null);
+    }
+  } else if (storedUser && rememberMeFlag !== 'true') {
+    // If user exists but remember me is NOT checked, clear the session
+    console.log('🔒 Remember me not checked – clearing session');
+    localStorage.removeItem('reviewrescue_user');
+    setUser(null);
+  }
+
+  // Check backend credentials status (doesn't require auth)
+  fetchContainerHealth();
+
+  // ===== Keep the existing hash handling for Stripe redirects =====
+  const handleUrlHashRedirects = () => {
+    const hash = window.location.hash;
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
+    
+    const routeParam = params.get('currentRoute');
+    if (routeParam) {
+      setCurrentRoute(routeParam);
     }
 
-
-    if (storedUser) {
-      try {
+    const successUpgrade = params.get('success') === 'true';
+    const updatedPlan = params.get('plan');
+    if (successUpgrade && updatedPlan) {
+      const storedUser = localStorage.getItem('reviewrescue_user');
+      if (storedUser) {
         const parsed = JSON.parse(storedUser);
-        // Immediately set the user to avoid the "logged out" flash
-        setUser(parsed);
-        setCurrentRoute('dashboard');
-        
-        // Then fetch the latest profile from the database (gets updated subscription, contact_email, etc.)
         fetch('/api/user/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ manualUserId: parsed.id })
+          body: JSON.stringify({ email: parsed.email, manualUserId: parsed.id })
         })
-          .then(res => res.json())
-          .then(data => {
-            if (data.profile) {
-              setUser(data.profile);
-              localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+        .then(res => res.json())
+        .then(data => {
+          if (data.profile) {
+            setUser(data.profile);
+            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+            if (data.profile.subscription_status === 'active') {
+              triggerToast(`✔ Workspace Upgraded! License plan set to "${updatedPlan.toUpperCase()}" successfully.`, 'success');
             } else {
-              // If the API doesn't return a profile, the user might have been deleted – log them out
-              localStorage.removeItem('reviewrescue_user');
-              setUser(null);
-              setCurrentRoute('landing');
+              triggerToast(`Payment received! Verifying license tier securely...`, 'info');
             }
-          })
-          .catch(err => {
-            console.error('Failed to refresh user profile:', err);
-            // Keep the stored user as fallback
-          });
-      } catch (err) {
-        console.error('Failed to parse stored user:', err);
-        localStorage.removeItem('reviewrescue_user');
-        setUser(null);
+          }
+        });
       }
+      window.location.hash = '#currentRoute=dashboard';
     }
+  };
 
-    // Check backend credentials status (doesn't require auth)
-    fetchContainerHealth();
-
-    // ===== Keep the existing hash handling for Stripe redirects =====
-    const handleUrlHashRedirects = () => {
-      const hash = window.location.hash;
-      if (!hash) return;
-
-      const params = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
-      
-      const routeParam = params.get('currentRoute');
-      if (routeParam) {
-        setCurrentRoute(routeParam);
-      }
-
-      const successUpgrade = params.get('success') === 'true';
-      const updatedPlan = params.get('plan');
-      if (successUpgrade && updatedPlan) {
-        const storedUser = localStorage.getItem('reviewrescue_user');
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          fetch('/api/user/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: parsed.email, manualUserId: parsed.id })
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.profile) {
-              setUser(data.profile);
-              localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-              if (data.profile.subscription_status === 'active') {
-                triggerToast(`✔ Workspace Upgraded! License plan set to "${updatedPlan.toUpperCase()}" successfully.`, 'success');
-              } else {
-                triggerToast(`Payment received! Verifying license tier securely...`, 'info');
-              }
-            }
-          });
-        }
-        window.location.hash = '#currentRoute=dashboard';
-      }
-    };
-
-    handleUrlHashRedirects();
-    window.addEventListener('hashchange', handleUrlHashRedirects);
-    return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
-  }, []);
+  handleUrlHashRedirects();
+  window.addEventListener('hashchange', handleUrlHashRedirects);
+  return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
+}, []);
 
     // Fetch feedback and invitations records once authenticated
     const fetchDashboardData = async (userId: string) => {
@@ -440,7 +449,8 @@
             email: authEmail,
             password: authPassword,
             businessName: authBusinessName,
-            action
+            action,
+            rememberMe: rememberMe // add this
           })
         });
         const data = await res.json();
@@ -456,17 +466,24 @@
           }
 
           if (data.profile) {
-            setUser(data.profile);
-            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-            
-            // Check if onboarding modal wizard is required
-            if (!data.profile.onboarded) {
-              setShowOnboarding(true);
-            } else {
-              setCurrentRoute('dashboard');
-            }
-            triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
-          }
+  setUser(data.profile);
+  localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+  
+  // ─── STORE REMEMBER ME FLAG ──────────────────────────────────
+  if (rememberMe) {
+    localStorage.setItem('reviewrescue_remember_me', 'true');
+  } else {
+    localStorage.removeItem('reviewrescue_remember_me');
+  }
+  
+  // Check if onboarding modal wizard is required
+  if (!data.profile.onboarded) {
+    setShowOnboarding(true);
+  } else {
+    setCurrentRoute('dashboard');
+  }
+  triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
+}
         } else {
           setAuthError(data.error || 'Authentication failed, please verify credentials or connection settings.');
         }
@@ -994,9 +1011,14 @@
       
       {/* Header */}
       <nav className="max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-150">
-        <Logo />
-        
-        <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
+  <button 
+    onClick={() => setCurrentRoute('landing')} 
+    className="hover:opacity-80 transition-opacity"
+  >
+    <Logo />
+  </button>
+  
+  <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
     <a href="#features" className="hover:text-slate-900 transition">Key Features</a>
     <a href="#pricing" className="hover:text-slate-900 transition font-sans">Plans & Pricing</a>
     <button 
@@ -1009,7 +1031,7 @@
     {user ? (
       <button 
         onClick={() => setCurrentRoute('dashboard')}
-        className="rounded-xl bg-slate-900 text-white px-4.5 py-2 hover:bg-slate-800 transition"
+        className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm"
       >
         Enter Dashboard
       </button>
@@ -1137,12 +1159,21 @@
   </motion.div>
 
   {/* CTA Buttons */}
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6, delay: 0.6 }}
-    className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
-  >
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.6, delay: 0.6 }}
+  className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
+>
+  {user ? (
+    <button
+      onClick={() => setCurrentRoute('dashboard')}
+      className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
+    >
+      Enter Dashboard
+      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+    </button>
+  ) : (
     <button
       onClick={() => setCurrentRoute('signup')}
       className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -1150,16 +1181,17 @@
       Get Started Instantly
       <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
     </button>
-    <a
-      href="https://calendly.com/rewakely/15min"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
-    >
-      <Calendar size={16} />
-      Book a Demo
-    </a>
-  </motion.div>
+  )}
+  <a
+    href="https://calendly.com/rewakely/15min"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
+  >
+    <Calendar size={16} />
+    Book a Demo
+  </a>
+</motion.div>
 </header>
 
 
@@ -1681,25 +1713,39 @@
     </div>
   )}
 
+  {/* ─── REMEMBER ME ──────────────────────────────────────────────── */}
+<div className="flex items-center gap-2 mt-2">
+  <input
+    type="checkbox"
+    id="rememberMe"
+    checked={rememberMe}
+    onChange={(e) => setRememberMe(e.target.checked)}
+    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-colors"
+  />
+  <label htmlFor="rememberMe" className="text-xs text-slate-500 cursor-pointer select-none hover:text-slate-700 transition-colors">
+    🔒 Remember me for 30 days
+  </label>
+</div>
+
   <button
-    onClick={() => handleAuthSubmit(currentRoute as 'signup' | 'signin')}
-    disabled={isAuthLoading}
-    className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs py-3.5 transition shadow"
-  >
-    {isAuthLoading ? (
-      <>
-        <RefreshCw className="h-3 w-3 animate-spin" /> Preparing workspace token...
-      </>
-    ) : currentRoute === 'signup' ? (
-      <>
-        <UserPlus size={14} /> Register Active Profile
-      </>
-    ) : (
-      <>
-        <LogIn size={14} /> Log Into Workspace
-      </>
-    )}
-  </button>
+  onClick={() => handleAuthSubmit(currentRoute as 'signup' | 'signin')}
+  disabled={isAuthLoading}
+  className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-850 text-white font-bold text-xs py-3.5 transition shadow"
+>
+  {isAuthLoading ? (
+    <>
+      <RefreshCw className="h-3 w-3 animate-spin" /> Logging in...
+    </>
+  ) : currentRoute === 'signup' ? (
+    <>
+      <UserPlus size={14} /> Register Active Profile
+    </>
+  ) : (
+    <>
+      <LogIn size={14} /> Log Into Workspace
+    </>
+  )}
+</button>
                 </div>
 
                 <div className="flex justify-between items-center text-xs text-slate-400 border-t border-slate-100 pt-4 font-sans">

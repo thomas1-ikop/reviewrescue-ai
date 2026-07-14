@@ -58,10 +58,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         
         {/* ─── LOGO ─── */}
         <div className="px-6 py-5 border-b border-slate-700/50 relative z-10">
-  <div className="[&_span]:text-white">
-    <Logo />
-  </div>
-  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mt-1">AI Reputation</span>
+  <button
+    onClick={() => setCurrentRoute('landing')}
+    className="hover:opacity-80 transition-opacity duration-200 w-full text-left"
+    title="Go to Home"
+  >
+    <div className="[&_span]:text-white">
+      <Logo />
+    </div>
+    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mt-1">AI Reputation</span>
+  </button>
 </div>
 
         {/* User Info */}
