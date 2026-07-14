@@ -38,7 +38,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'dashboardSettings', label: 'Settings', icon: <Settings size={18} /> },
     { 
     id: 'demo', 
-    label: '📅 Book a Demo', 
+    label: ' Book a Demo', 
     icon: <Calendar size={18} />,
     external: true,
     url: 'https://calendly.com/rewakely/15min'
@@ -82,42 +82,55 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto relative z-10">
           {navItems.map((item) => {
-            if (item.external) {
+  const isActive = currentRoute === item.id;
+  
+  // ─── EXTERNAL LINK (Book a Demo) ──────────────────────────────
+  if (item.external) {
     return (
       <a
         key={item.id}
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-100/50 transition text-sm font-medium text-slate-700 hover:text-blue-600"
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+          isActive
+            ? 'bg-white/10 text-white shadow-lg shadow-white/5'
+            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+        }`}
       >
-        {item.icon}
+        <span className={isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400 transition-colors'}>
+          {item.icon}
+        </span>
         {item.label}
+        {isActive && (
+          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/50" />
+        )}
       </a>
     );
   }
-            const isActive = currentRoute === item.id;
-            return (
-              <button
-                key={item.id}
-                id={`tour-sidebar-${item.id}`}  // ← ADD THIS LINE
-                onClick={() => setCurrentRoute(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-white/10 text-white shadow-lg shadow-white/5'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <span className={isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400 transition-colors'}>
-                  {item.icon}
-                </span>
-                {item.label}
-                {isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/50" />
-                )}
-              </button>
-            );
-          })}
+
+  // ─── INTERNAL LINKS ──────────────────────────────────────────────
+  return (
+    <button
+      key={item.id}
+      id={`tour-sidebar-${item.id}`}
+      onClick={() => setCurrentRoute(item.id)}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+        isActive
+          ? 'bg-white/10 text-white shadow-lg shadow-white/5'
+          : 'text-slate-400 hover:bg-white/5 hover:text-white'
+      }`}
+    >
+      <span className={isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-blue-400 transition-colors'}>
+        {item.icon}
+      </span>
+      {item.label}
+      {isActive && (
+        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-400 shadow-lg shadow-blue-400/50" />
+      )}
+    </button>
+  );
+})}
         </nav>
 
         {/* Logout */}

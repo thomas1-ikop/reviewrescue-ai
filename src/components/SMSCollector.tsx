@@ -161,7 +161,7 @@ useEffect(() => {
             <div className="flex items-center gap-4 mt-3">
               <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
               <span className="text-[10px] text-slate-400 break-all">
-                rewakely.com/review?business={userId}
+                Check out the link on the QR Code: rewakely.com/review?business={userId}
               </span>
             </div>
           ) : (

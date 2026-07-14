@@ -75,7 +75,7 @@ export default function FeedbackView({ profile }: FeedbackViewProps) {
           <div>
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Customer Feedback</h1>
             <p className="text-xs text-slate-500 font-sans">
-              See what your customers said after receiving your SMS invites, so the results of the SMS messages to your customers.
+              See what your customers said after receiving your SMS or email invites, so the results of the messages to your customers.
             </p>
           </div>
         </div>
@@ -182,7 +182,7 @@ export default function FeedbackView({ profile }: FeedbackViewProps) {
 
       {/* Note */}
       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-500 text-center">
-        Only feedback submitted via your SMS review invites appears here.
+        Only feedback submitted via your SMS or email review invites appears here.
       </div>
     </div>
   );
