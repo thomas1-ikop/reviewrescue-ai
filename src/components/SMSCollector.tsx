@@ -138,7 +138,7 @@ useEffect(() => {
         <div className="mb-6 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-slate-800">📱 QR Code</h3>
+              <h3 className="font-semibold text-slate-800">📱 QR Code | Don't Have A Customer List? Use the QR Code feature!</h3>
               <p className="text-xs text-slate-500">
                 Print and display for instant customer feedback!
               </p>
