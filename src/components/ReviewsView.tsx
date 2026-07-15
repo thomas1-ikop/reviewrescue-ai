@@ -118,20 +118,25 @@ export default function ReviewsView({
   };
 
   const handleGenerateAI = async () => {
-    if (!selectedReview) return;
-    setIsGenerating(true);
-    setAiError(null);
-    try {
-      const generated = await onGenerateReply(selectedReview);
-      if (generated) {
-        setAiResponse(generated);
-      }
-    } catch (err: any) {
-      setAiError(err.message || 'AI Reply generation failed. Please try again.');
-    } finally {
-      setIsGenerating(false);
+  if (!selectedReview) return;
+  setIsGenerating(true);
+  setAiError(null);
+  try {
+    const generated = await onGenerateReply(selectedReview);
+    if (generated) {
+      setAiResponse(generated);
     }
-  };
+  } catch (err: any) {
+    // Check for Gemini busy error
+    if (err.message && err.message.includes('high demand')) {
+      setAiError('We are sorry, but the AI service is currently experiencing high demand. Please try again in a few moments.');
+    } else {
+      setAiError(err.message || 'AI Reply generation failed. Please try again.');
+    }
+  } finally {
+    setIsGenerating(false);
+  }
+};
 
   const handlePostReplySubmit = async () => {
     if (!selectedReview || !aiResponse) return;
@@ -521,7 +526,7 @@ export default function ReviewsView({
                   />
                   <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
                     <CornerDownRight size={12} />
-                    <span>Saving this reply updates status to "Replied".</span>
+                    <span>Saving this reply updates status to "Replied". It will not be posted automatically. If you want it to be posted, you must copy and paste it to the website.</span>
                   </div>
                 </div>
 

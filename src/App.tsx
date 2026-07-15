@@ -585,33 +585,42 @@
 
     // Generate Reply with Gemini AI
     const handleGenerateReplyResponse = async (review: Review): Promise<string | null> => {
-      if (!user) return null;
-      try {
-        const res = await fetch('/api/reviews/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            reviewText: review.comment,
-            rating: review.rating,
-            businessName: user.business_name || 'Our establishment',
-            industry: user.industry || 'Business Cafe',
-            tone: user.tone || 'Friendly',
-            userId: user.id
-          })
-        });
-        
-        if (res.status === 403) {
-          const errorData = await res.json();
-          throw new Error(errorData.message);
-        }
+  if (!user) return null;
+  try {
+    const res = await fetch('/api/reviews/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reviewText: review.comment,
+        rating: review.rating,
+        businessName: user.business_name || 'Our establishment',
+        industry: user.industry || 'Business Cafe',
+        tone: user.tone || 'Friendly',
+        userId: user.id
+      })
+    });
+    
+    if (res.status === 403) {
+      const errorData = await res.json();
+      throw new Error(errorData.message);
+    }
 
-        const data = await res.json();
-        return data.replyText || '';
-      } catch (err: any) {
-        console.error(err);
-        throw err;
+    if (!res.ok) {
+      const errorData = await res.json();
+      // Check for 503 specific error
+      if (res.status === 503 && errorData.error === 'gemini_busy') {
+        throw new Error(errorData.message || 'AI service is currently busy. Please try again.');
       }
-    };
+      throw new Error(errorData.message || 'Failed to generate reply');
+    }
+
+    const data = await res.json();
+    return data.replyText || '';
+  } catch (err: any) {
+    console.error(err);
+    throw err;
+  }
+};
 
     // publish/save customized AI Reply
     const handlePublishReply = async (reviewId: string, replyText: string) => {
@@ -1562,7 +1571,7 @@
               <div className="relative z-10 max-w-md mx-auto my-auto space-y-8 py-8">
                 <div className="space-y-4">
                   <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight">
-                    Reclaim your customer sentiment, automated by Gemini AI.
+                    Reclaim your customer sentiment, automated by Rewakely AI.
                   </h1>
                   <p className="text-sm text-slate-300 font-sans leading-relaxed">
                     Join hundreds of top-tier merchants who protect their reputation in real time using automated responses and high-volume text collection.

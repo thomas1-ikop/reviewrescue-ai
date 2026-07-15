@@ -1354,9 +1354,16 @@ Tone should be: ${tone || 'Professional & Direct'}`;
 
     res.json({ replyText: response.text?.trim() });
   } catch (err: any) {
-    console.error('Gemini generateContent failure:', err);
-    res.status(500).json({ error: 'Gemini service failed', message: err.message });
+  console.error('Gemini generateContent failure:', err);
+  // Check if it's a 503 (high demand) error
+  if (err.status === 503 || (err.message && err.message.includes('high demand'))) {
+    return res.status(503).json({
+      error: 'gemini_busy',
+      message: 'We are sorry, but we are currently experiencing high demand. Please try again in a few moments.'
+    });
   }
+  res.status(500).json({ error: 'Gemini service failed', message: err.message });
+}
 });
 
 
