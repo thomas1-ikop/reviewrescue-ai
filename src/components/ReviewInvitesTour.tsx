@@ -45,14 +45,14 @@ const ReviewInvitesTour: React.FC<ReviewInvitesTourProps> = ({ isOpen, onComplet
     },
     {
       id: 'email',
-      title: '✉️ Email Invite',
+      title: ' Email Invite',
       description: 'Send a review request via email. Enter the customer name and email address, then click "Send Email Invite". Perfect for customers who prefer email.',
       icon: <Mail className="w-6 h-6 text-blue-500" />,
       target: '.email-invite-card',
     },
     {
       id: 'sms',
-      title: '📱 SMS Invite',
+      title: ' SMS Invite',
       description: 'Send a review request via SMS. If you\'re on the Premium plan, you can also send SMS invites. Pro users can upgrade to unlock SMS.',
       icon: <Smartphone className="w-6 h-6 text-emerald-500" />,
       target: '.sms-invite-card',

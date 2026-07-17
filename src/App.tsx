@@ -1485,6 +1485,8 @@
   </div>
 </section>
 
+
+
       {/* Pricing cards columns */}
       <section id="pricing" className="py-20 px-6 max-w-7xl w-full mx-auto">
         <div className="text-center space-y-4 mb-16">
