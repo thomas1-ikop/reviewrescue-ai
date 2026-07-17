@@ -5,7 +5,7 @@ import Logo from './Logo';
 import { 
   LayoutDashboard, MessageSquare, Smartphone, ShieldCheck, 
   ThumbsUp, HelpCircle, Settings, LogOut, Zap, 
-  Sparkles, CheckCircle, AlertTriangle
+  Sparkles, CheckCircle, AlertTriangle, Code, TrendingUp, Users
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -34,6 +34,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'invites', label: 'Review Invites', icon: <Smartphone size={18} /> },
     { id: 'autopilot', label: 'Auto-Reply', icon: <ShieldCheck size={18} /> },
     { id: 'feedback', label: 'Customer Feedback', icon: <ThumbsUp size={18} /> },
+    { id: 'insights', label: 'Review Insights', icon: <Sparkles size={18} />, premium: true },
+  { id: 'widget', label: 'Review Widget', icon: <Code size={18} />, premium: true },
+  { id: 'competitors', label: 'Competitor Intel', icon: <TrendingUp size={18} />, premium: true },
+  { id: 'team', label: 'Team Accounts', icon: <Users size={18} />, premium: true },
+
+
     { id: 'support', label: 'Help & Support', icon: <HelpCircle size={18} /> },
     { id: 'dashboardSettings', label: 'Settings', icon: <Settings size={18} /> },
     { 
@@ -43,6 +49,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     external: true,
     url: 'https://calendly.com/rewakely/15min'
   },
+  
   ];
 
   const handleLogoutClick = () => setShowConfirmModal(true);
