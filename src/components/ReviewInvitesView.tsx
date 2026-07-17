@@ -288,7 +288,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
     <div>
       <h3 className="font-semibold text-slate-800">📱 QR Code</h3>
       <p className="text-xs text-slate-500">
-        Print and display for instant customer feedback!
+        Dont have a customer list? Print and display for instant customer feedback!
       </p>
     </div>
     {qrCodeDataUrl && (
@@ -305,7 +305,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
     <div className="flex items-center gap-4 mt-3">
       <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
       <span className="text-[10px] text-slate-400 break-all">
-        rewakely.com/review?business={userId}
+        Checkout the link: rewakely.com/review?business={userId}
       </span>
     </div>
   ) : (
@@ -321,7 +321,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 email-invite-card">
           <div className="flex items-center gap-2 mb-4">
             <Mail className="w-5 h-5 text-blue-500" />
-            <h3 className="font-semibold text-slate-800">✉️ Email Invite</h3>
+            <h3 className="font-semibold text-slate-800"> Email Invite</h3>
           </div>
           <div className="space-y-3">
             <input
@@ -355,7 +355,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Smartphone className="w-5 h-5 text-emerald-500" />
-              <h3 className="font-semibold text-slate-800">📱 SMS Invite</h3>
+              <h3 className="font-semibold text-slate-800"> SMS Invite</h3>
             </div>
             {!isPremium && (
               <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
@@ -417,7 +417,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6 bulk-import-section">
         <div className="flex items-center gap-2 mb-4">
           <Upload className="w-5 h-5 text-purple-500" />
-          <h3 className="font-semibold text-slate-800">📥 Import Customer List</h3>
+          <h3 className="font-semibold text-slate-800"> Import Customer List</h3>
           <span className="text-[9px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">AI Parsing</span>
         </div>
         <textarea
@@ -439,7 +439,7 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 scheduled-invites-section">
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-slate-500" />
-          <h3 className="font-semibold text-slate-800">📋 Scheduled Invites</h3>
+          <h3 className="font-semibold text-slate-800"> Scheduled Invites</h3>
           <span className="text-[9px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
             {scheduledInvites.length} pending
           </span>

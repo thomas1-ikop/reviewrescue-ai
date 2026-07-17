@@ -2112,7 +2112,39 @@ app.post('/api/reviews/simulate-google', async (req, res) => {
   ];
 
   const addedReviews: any[] = [];
+
   for (const sim of reviewSims) {
+    const isPositive = sim.rating >= 4;
+    let replyText = '';
+
+    // ─── GENERATE AI REPLY FOR 4-5⭐ ──────────────────────────────
+    if (isPositive) {
+      const gemini = getGeminiClient();
+      if (gemini) {
+        try {
+          const prompt = `You are a customer service AI avatar for ${profile.business_name}, a ${profile.industry || 'local'} business. 
+Write a short, warm, delighted 1-2 sentence auto-pilot response to a ${sim.rating}-star review left by ${sim.name}. 
+Do not use placeholders. Write the final response immediately.
+Reply in the same language as the customer's review comment.
+Review comment: "${sim.comment}"
+Aesthetic Tone: ${profile.tone}`;
+
+          const response = await gemini.models.generateContent({
+            model: 'gemini-3.5-flash',
+            contents: prompt,
+          });
+          replyText = response.text?.trim() || '';
+        } catch (gErr) {
+          console.error('Gemini content generation failed in background:', gErr);
+        }
+      }
+
+      if (!replyText) {
+        replyText = `Thank you so much, ${sim.name}! The team at ${profile.business_name || 'our business'} are delighted by your feedback!`;
+      }
+    }
+
+    // ─── CREATE REVIEW RECORD ──────────────────────────────────────
     const r = {
       id: 'rev_' + Math.random().toString(36).substr(2, 9),
       user_id: userId,
@@ -2120,12 +2152,46 @@ app.post('/api/reviews/simulate-google', async (req, res) => {
       rating: sim.rating,
       comment: sim.comment,
       source: sim.source,
-      status: 'pending',
-      is_autopilot: false,
-      created_at: new Date().toISOString()
+      status: isPositive ? 'replied' : 'pending',
+      reply_text: isPositive ? replyText : null,
+      is_autopilot: isPositive,
+      auto_synced: true,
+      created_at: new Date().toISOString(),
+      replied_at: isPositive ? new Date().toISOString() : null
     };
+
     const { data: inserted } = await insertReview(r);
     addedReviews.push(inserted);
+
+    // ─── LOG AUTO-REPLY ──────────────────────────────────────────────
+    if (isPositive) {
+      await supabaseServiceClient
+        .from('autopilot_logs')
+        .insert([{
+          user_id: userId,
+          review_id: r.id,
+          review_customer_name: sim.name,
+          review_text: sim.comment,
+          rating: sim.rating,
+          generated_reply: replyText,
+          status: 'success',
+          created_at: new Date().toISOString()
+        }]);
+    }
+
+    // ─── NOTIFICATION FOR NEGATIVE REVIEWS ──────────────────────────
+    if (!isPositive) {
+      const alarmMsg = `Negative ${sim.rating}-Star Google Review received from ${sim.name}: "${sim.comment.substring(0, 80)}..."`;
+      await supabaseServiceClient
+        .from('notifications')
+        .insert([{
+          user_id: userId,
+          review_id: r.id,
+          message: alarmMsg,
+          read: false,
+          created_at: new Date().toISOString()
+        }]);
+    }
   }
 
   res.json({ reviews: addedReviews });

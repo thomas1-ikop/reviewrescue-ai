@@ -30,9 +30,10 @@ interface AutopilotLog {
 interface AutopilotPanelProps {
   profile: Profile;
   onProfileUpdated: (updated: Profile) => void;
+  toast: (message: string, type: 'success' | 'error' | 'warn' | 'info') => void; // 👈 Add this
 }
 
-export default function AutopilotPanel({ profile, onProfileUpdated }: AutopilotPanelProps) {
+export default function AutopilotPanel({ profile, onProfileUpdated, toast }: AutopilotPanelProps) {
   const [isEnabled, setIsEnabled] = useState(profile.autopilot_enabled || false);
   const [logs, setLogs] = useState<AutopilotLog[]>([]);
   const [totalReplies, setTotalReplies] = useState(0);
@@ -125,6 +126,8 @@ const handleDisconnectConfirm = async () => {
   }
 };
 
+
+
   const fetchStatsAndLogs = async () => {
     setIsLoadingLogs(true);
     try {
@@ -166,6 +169,24 @@ const handleDisconnectConfirm = async () => {
       setIsLoadingLogs(false);
     }
   };
+
+  const handleSimulate = async () => {
+  try {
+    const res = await fetch('/api/reviews/simulate-google', {
+      method: 'POST',
+      headers: { 'x-user-id': profile.id }
+    });
+    const data = await res.json();
+    if (data.reviews) {
+      toast('🎉 4 Simulated Google Reviews added!', 'success');
+      // Refresh stats and logs
+      fetchStatsAndLogs();
+    }
+  } catch (err: any) {
+    toast('Failed to simulate reviews', 'error');
+    console.error(err);
+  }
+};
 
   const handleSendReply = async (reviewId: string) => {
     const draftText = replyDrafts[reviewId]?.trim();
@@ -627,14 +648,7 @@ const handleDisconnectConfirm = async () => {
                 As customer reviews arrive on Google, they will show up here along with automatic replies.
               </p>
             </div>
-            {isEnabled && (
-              <button 
-                onClick={handleSyncNow}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 shadow-sm transition active:scale-95"
-              >
-                Sync simulated reviews
-              </button>
-            )}
+           
           </div>
         ) : (
           <div className="divide-y divide-slate-100">

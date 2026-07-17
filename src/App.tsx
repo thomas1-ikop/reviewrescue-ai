@@ -1875,6 +1875,7 @@
                 setUser(updated);
                 localStorage.setItem('reviewrescue_user', JSON.stringify(updated));
               }}
+              toast={triggerToast} 
             />
           )}
           
