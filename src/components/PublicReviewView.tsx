@@ -188,52 +188,54 @@ export default function PublicReviewView() {
 
   // ─── SUCCESS STATE ──────────────────────────────────────────────
   if (isSubmitted && rating !== null) {
-  const isPositive = rating >= 4;
-  
-  // Build the Google Maps link – direct if placeId exists, else search
-  const googleReviewLink = placeId
-    ? `https://search.google.com/local/writereview?placeid=${placeId}`
-    : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review+on+google+maps`;
+    const isPositive = rating >= 4;
+    
+    // Build the Google Maps link – direct if placeId exists, else search
+    const googleReviewLink = placeId
+      ? `https://search.google.com/local/writereview?placeid=${placeId}`
+      : `https://www.google.com/search?q=${encodeURIComponent(businessName)}+review+on+google+maps`;
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
-        <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
-        
-        <div className="p-8 space-y-5">
-          {/* Header */}
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
-              {isPositive ? (
-                <Smile className="w-8 h-8 text-emerald-500" />
-              ) : (
-                <Frown className="w-8 h-8 text-amber-500" />
-              )}
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-fade-in">
+          <div className={`h-2 ${isPositive ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'}`} />
+          
+          <div className="p-8 space-y-5">
+            {/* Header */}
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 bg-slate-100">
+                {isPositive ? (
+                  <Smile className="w-8 h-8 text-emerald-500" />
+                ) : (
+                  <Frown className="w-8 h-8 text-amber-500" />
+                )}
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">
+                Thank you, {customerName.trim() || 'valued customer'}!
+              </h2>
+              <div className="flex items-center justify-center gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={20}
+                    fill={star <= rating ? '#EAB308' : 'none'}
+                    className={star <= rating ? 'text-yellow-500' : 'text-slate-300'}
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-slate-500 mt-1">
+                You rated {businessName} {rating} stars
+              </p>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">
-              Thank you, {customerName.trim() || 'valued customer'}!
-            </h2>
-            <div className="flex items-center justify-center gap-1 mt-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star
-                  key={star}
-                  size={20}
-                  fill={star <= rating ? '#EAB308' : 'none'}
-                  className={star <= rating ? 'text-yellow-500' : 'text-slate-300'}
-                />
-              ))}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              You rated {businessName} {rating} stars
-            </p>
-          </div>
 
-          <div className="border-t border-slate-100 pt-4">
-            {isPositive ? (
-              // ─── 4-5 STARS: Google Maps link ──────────────────────────
-              <div className="space-y-3">
-                <p className="text-sm text-slate-600 text-center">
-                  ⭐ You had a great experience! Would you mind sharing it publicly on Google Maps?
+            <div className="border-t border-slate-100 pt-4 space-y-4">
+              {/* ─── GOOGLE REVIEW BUTTON - SAME FOR EVERYONE ─── */}
+              <div>
+                <p className="text-sm text-slate-600 text-center font-medium mb-3">
+                  {isPositive 
+                    ? "⭐ You had a great experience! Would you mind sharing it publicly?"
+                    : "📝 We value your honest feedback. Would you like to share it publicly?"
+                  }
                 </p>
                 <a
                   href={googleReviewLink}
@@ -245,53 +247,52 @@ export default function PublicReviewView() {
                   {placeId ? 'Write a Review on Google Maps' : 'Find us on Google Maps'}
                   <ExternalLink className="w-4 h-4" />
                 </a>
-                <p className="text-[10px] text-slate-400 text-center">
+                <p className="text-[10px] text-slate-400 text-center mt-1.5">
                   {placeId 
                     ? 'This will open the review form for this business'
                     : 'You will be redirected to a Google search – click the business to leave a review'
                   }
                 </p>
               </div>
-            ) : (
-              // ─── 1-3 STARS: Contact the owner ─────────────────────────
-              <div className="space-y-3">
-                <p className="text-sm text-slate-600 text-center">
-                  We're sorry your experience wasn't perfect. Please contact the business directly so they can make it right.
+
+              {/* ─── PRIVATE CONTACT - AVAILABLE TO EVERYONE ─── */}
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-xs text-slate-400 text-center mb-2">
+                  {isPositive 
+                    ? "Prefer to share privately? We'd still love to hear from you."
+                    : "Or contact the business directly so they can make it right."
+                  }
                 </p>
                 
                 {contactEmail ? (
                   <a
                     href={`mailto:${contactEmail}?subject=Feedback about my experience at ${encodeURIComponent(businessName)}`}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] transition text-white rounded-xl text-sm font-semibold shadow-lg shadow-slate-100"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition text-slate-700 rounded-xl text-sm font-medium"
                   >
                     <Mail className="w-4 h-4" />
-                    Contact the Owner
+                    Send Private Feedback
                   </a>
                 ) : (
-                  <div className="text-center p-4 bg-slate-50 rounded-xl">
+                  <div className="text-center p-3 bg-slate-50 rounded-xl">
                     <p className="text-sm text-slate-500">
-                      📧 The business owner will reach out to you directly to address your concerns.
+                      📧 The business owner will reach out to you directly.
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
                       Please expect a response within 1-2 business days.
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      (The owner hasn't set a contact email yet.)
-                    </p>
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
 
-          <div className="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
-            {businessName} verified feedback channel &bull; Rewakely &copy; 2026
+            <div className="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
+              {businessName} verified feedback channel &bull; Rewakely &copy; 2026
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   // ─── MAIN FORM ──────────────────────────────────────────────────
   return (
@@ -361,7 +362,7 @@ export default function PublicReviewView() {
 
             {!rating && !isSubmitting && (
               <p className="text-center text-[11px] text-slate-400 font-medium">
-                Tap a star to submit your review
+                Tap a star to submit your feedback
               </p>
             )}
 
