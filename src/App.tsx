@@ -6,6 +6,13 @@
   import { Calendar } from 'lucide-react';
   import {  User, CreditCard } from 'lucide-react';
 
+  import {
+  loadPersistedUserSession,
+  persistUserSession,
+  updateStoredUser,
+  clearUserSession
+} from './lib/authStorage';
+
 
   import React, { useState, useEffect } from 'react'; 
   import { motion, AnimatePresence } from 'motion/react';
@@ -214,20 +221,12 @@
     return;
   }
 
-  // ===== ONLY RESTORE FROM LOCALSTORAGE =====
-  const storedUser = localStorage.getItem('reviewrescue_user');
-  if (storedUser) {
-    try {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
-      
-      // If we're on a public route but have a user, go to dashboard
-      if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-        setCurrentRoute('dashboard');
-      }
-    } catch (err) {
-      console.error('Failed to parse stored user:', err);
-      localStorage.removeItem('reviewrescue_user');
+  // ===== RESTORE SESSION =====
+  const restoredUser = loadPersistedUserSession();
+  if (restoredUser) {
+    setUser(restoredUser);
+    if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+      setCurrentRoute('dashboard');
     }
   }
 
@@ -404,24 +403,16 @@
       }
 
       if (data.profile) {
-        console.log('✅ Profile received:', data.profile); // 👈 ADD THIS
-        setUser(data.profile);
-        localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-        
-        if (rememberMe) {
-          localStorage.setItem('reviewrescue_remember_me', 'true');
-        } else {
-          localStorage.removeItem('reviewrescue_remember_me');
-        }
-        
-        if (!data.profile.onboarded) {
-          setShowOnboarding(true);
-        } else {
-          console.log('➡️ Setting route to dashboard'); // 👈 ADD THIS
-          setCurrentRoute('dashboard');
-        }
-        triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
-      } else {
+  setUser(data.profile);
+  persistUserSession(data.profile, rememberMe);
+
+  if (!data.profile.onboarded) {
+    setShowOnboarding(true);
+  } else {
+    setCurrentRoute('dashboard');
+  }
+  triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
+} else {
         console.log('❌ No profile in response'); // 👈 ADD THIS
       }
     } else {
@@ -437,8 +428,7 @@
 
     const handleSignOut = () => {
   setUser(null);
-  localStorage.removeItem('reviewrescue_user');
-  localStorage.removeItem('reviewrescue_remember_me');
+  clearUserSession();
   setReviews([]);
   setInvites([]);
   setNegativeAlerts([]);
