@@ -214,31 +214,20 @@
     return;
   }
 
-  // ===== RESTORE FROM LOCALSTORAGE WITH REMEMBER ME =====
+  // ===== ONLY RESTORE FROM LOCALSTORAGE =====
   const storedUser = localStorage.getItem('reviewrescue_user');
-  const rememberMeFlag = localStorage.getItem('reviewrescue_remember_me');
-
   if (storedUser) {
-    // ✅ ONLY RESTORE IF REMEMBER ME IS CHECKED
-    if (rememberMeFlag === 'true') {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setUser(parsed);
-        
-        // If we're on a public route but have a user, go to dashboard
-        if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-          setCurrentRoute('dashboard');
-        }
-      } catch (err) {
-        console.error('Failed to parse stored user:', err);
-        localStorage.removeItem('reviewrescue_user');
-        localStorage.removeItem('reviewrescue_remember_me');
+    try {
+      const parsed = JSON.parse(storedUser);
+      setUser(parsed);
+      
+      // If we're on a public route but have a user, go to dashboard
+      if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+        setCurrentRoute('dashboard');
       }
-    } else {
-      // ❌ REMEMBER ME IS NOT CHECKED – clear the session
-      console.log('🔒 Remember me not checked – clearing session');
+    } catch (err) {
+      console.error('Failed to parse stored user:', err);
       localStorage.removeItem('reviewrescue_user');
-      setUser(null);
     }
   }
 
@@ -449,7 +438,7 @@
     const handleSignOut = () => {
   setUser(null);
   localStorage.removeItem('reviewrescue_user');
-  localStorage.removeItem('reviewrescue_remember_me'); // ✅ Clears everything
+  localStorage.removeItem('reviewrescue_remember_me');
   setReviews([]);
   setInvites([]);
   setNegativeAlerts([]);
