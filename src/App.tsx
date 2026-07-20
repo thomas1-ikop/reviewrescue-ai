@@ -450,6 +450,8 @@
     });
     const data = await res.json();
     
+    console.log('🔐 Auth response:', data); // 👈 ADD THIS
+
     if (res.ok) {
       if (data.verificationRequired) {
         triggerToast('Check your email to confirm your account.', 'success');
@@ -461,6 +463,7 @@
       }
 
       if (data.profile) {
+        console.log('✅ Profile received:', data.profile); // 👈 ADD THIS
         setUser(data.profile);
         localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
         
@@ -473,9 +476,12 @@
         if (!data.profile.onboarded) {
           setShowOnboarding(true);
         } else {
+          console.log('➡️ Setting route to dashboard'); // 👈 ADD THIS
           setCurrentRoute('dashboard');
         }
         triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
+      } else {
+        console.log('❌ No profile in response'); // 👈 ADD THIS
       }
     } else {
       setAuthError(data.error || 'Authentication failed, please verify credentials or connection settings.');
@@ -1899,6 +1905,12 @@
       )}
     </DashboardLayout>
   )}
+
+  {user && currentRoute === 'dashboard' && !user && (
+  <div className="p-8 text-center">
+    <p>Loading dashboard...</p>
+  </div>
+)}
 
 
       </div>
