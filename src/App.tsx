@@ -214,45 +214,10 @@
     return;
   }
 
-  // ===== SET UP AUTH STATE LISTENER =====
-  const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-      console.log('🔐 Auth event:', event, session?.user?.email);
-      
-      if (session?.user) {
-        // User is signed in – fetch profile from your API
-        try {
-          const res = await fetch('/api/user/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ manualUserId: session.user.id })
-          });
-          const data = await res.json();
-          if (data.profile) {
-            setUser(data.profile);
-            // Store in localStorage for quick restore
-            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-          }
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
-        }
-      } else {
-        // User is signed out – clear everything
-        setUser(null);
-        localStorage.removeItem('reviewrescue_user');
-        localStorage.removeItem('reviewrescue_remember_me');
-        if (currentRoute !== 'landing' && currentRoute !== 'signin' && currentRoute !== 'signup') {
-          setCurrentRoute('landing');
-        }
-      }
-    }
-  );
-
-  // ===== CHECK EXISTING SESSION ON LOAD =====
+  // ===== CHECK SESSION ON LOAD (ONCE) =====
   const checkSession = async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session?.user) {
-      // Session exists – fetch profile
       try {
         const res = await fetch('/api/user/auth', {
           method: 'POST',
@@ -268,22 +233,53 @@
         console.error('Failed to fetch profile:', err);
       }
     } else {
-      // No session – clear localStorage if no Remember Me
+      // No session – check Remember Me
+      const storedUser = localStorage.getItem('reviewrescue_user');
       const rememberMe = localStorage.getItem('reviewrescue_remember_me');
-      if (rememberMe !== 'true') {
+      
+      // If we have a stored user but no session, clear it (session expired)
+      if (storedUser) {
         localStorage.removeItem('reviewrescue_user');
-        setUser(null);
-      } else {
-        // If Remember Me is true but no session, we need to re-authenticate silently
-        // For now, just clear it to avoid confusion
         localStorage.removeItem('reviewrescue_remember_me');
-        localStorage.removeItem('reviewrescue_user');
         setUser(null);
       }
     }
   };
 
   checkSession();
+
+  // ===== AUTH STATE LISTENER (KEEP IN SYNC) =====
+  const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
+      console.log('🔐 Auth event:', event, session?.user?.email);
+      
+      if (session?.user) {
+        // User signed in – fetch profile
+        try {
+          const res = await fetch('/api/user/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ manualUserId: session.user.id })
+          });
+          const data = await res.json();
+          if (data.profile) {
+            setUser(data.profile);
+            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+          }
+        } catch (err) {
+          console.error('Failed to fetch profile:', err);
+        }
+      } else {
+        // User signed out – clear everything
+        setUser(null);
+        localStorage.removeItem('reviewrescue_user');
+        localStorage.removeItem('reviewrescue_remember_me');
+        if (currentRoute !== 'landing' && currentRoute !== 'signin' && currentRoute !== 'signup') {
+          setCurrentRoute('landing');
+        }
+      }
+    }
+  );
 
   // ===== KEEP HASH HANDLING FOR STRIPE =====
   const handleUrlHashRedirects = () => {
@@ -300,7 +296,6 @@
     const successUpgrade = params.get('success') === 'true';
     const updatedPlan = params.get('plan');
     if (successUpgrade && updatedPlan) {
-      // Refresh user profile
       const storedUser = localStorage.getItem('reviewrescue_user');
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
