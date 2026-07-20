@@ -90,13 +90,13 @@
         </div>
 
         {/* Info box */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
-          <p className="text-sm text-amber-800 leading-snug">
-            💡 Your customer will receive an SMS with a link to rate your business.{' '}
-            <span className="font-medium">4–5★ → Google Maps</span>,{' '}
-            <span className="font-medium">1–3★ → contact you directly</span>.
-          </p>
-        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5">
+  <p className="text-sm text-blue-800 leading-snug">
+    💡 Your customer will receive an SMS with a link to leave a review on Google Maps.{' '}
+    <span className="font-medium">All feedback is valued</span> — 
+    customers can leave public reviews or contact you privately.
+  </p>
+</div>
 
 
         {/* Send button */}

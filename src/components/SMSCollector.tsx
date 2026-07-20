@@ -86,12 +86,43 @@ const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour 
     return () => { cancelled = true; };
   }, [userId, refreshStats]);
 
+  const [placeId, setPlaceId] = useState<string | null>(null);
+
+// Fetch business data
+useEffect(() => {
+  const fetchBusiness = async () => {
+    try {
+      const res = await fetch(`/api/business/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlaceId(data.place_id);
+      }
+    } catch (err) {
+      console.error('Failed to fetch business:', err);
+    }
+  };
+  fetchBusiness();
+}, [userId]);
+
+// Then use it for QR code
+useEffect(() => {
+  if (userId && placeId && !qrGeneratedRef.current) {
+    qrGeneratedRef.current = true;
+    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
+    QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
+      if (!err) setQrCodeDataUrl(dataUrl);
+    });
+  }
+}, [userId, placeId]);
+
 
   // ── QR Code Generation (runs once using userId only) ─────────────────────
 useEffect(() => {
   if (userId && !qrGeneratedRef.current) {
     qrGeneratedRef.current = true; // prevent re-run
-    const url = `https://rewakely.com/review?business=${userId}`;
+    // You need to fetch the user's place_id first
+// But for now, change to:
+const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
     console.log('[QR] Generating QR code for URL:', url);
     QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
       if (!err) {

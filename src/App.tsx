@@ -208,64 +208,84 @@
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  // ===== RESTORE USER FROM LOCALSTORAGE (WITH REMEMBER ME) =====
-  const storedUser = localStorage.getItem('reviewrescue_user');
-  const rememberMeFlag = localStorage.getItem('reviewrescue_remember_me');
-
-  // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
+  // ===== PUBLIC ROUTES =====
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
-    return; // Don't auto-login on public pages
+    return;
   }
 
-  // ─── AUTO-LOGIN ONLY IF "REMEMBER ME" IS CHECKED ──────────────
-  if (storedUser && rememberMeFlag === 'true') {
-    try {
-      const parsed = JSON.parse(storedUser);
-      // Immediately set the user to avoid the "logged out" flash
-      setUser(parsed);
-      setCurrentRoute('dashboard');
+  // ===== SET UP AUTH STATE LISTENER =====
+  const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
+      console.log('🔐 Auth event:', event, session?.user?.email);
       
-      // Then fetch the latest profile from the database
-      fetch('/api/user/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manualUserId: parsed.id })
-      })
-        .then(res => res.json())
-        .then(data => {
+      if (session?.user) {
+        // User is signed in – fetch profile from your API
+        try {
+          const res = await fetch('/api/user/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ manualUserId: session.user.id })
+          });
+          const data = await res.json();
           if (data.profile) {
             setUser(data.profile);
+            // Store in localStorage for quick restore
             localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-          } else {
-            // If the API doesn't return a profile, the user might have been deleted – log them out
-            localStorage.removeItem('reviewrescue_user');
-            localStorage.removeItem('reviewrescue_remember_me');
-            setUser(null);
-            setCurrentRoute('landing');
           }
-        })
-        .catch(err => {
-          console.error('Failed to refresh user profile:', err);
-          // Keep the stored user as fallback
-        });
-    } catch (err) {
-      console.error('Failed to parse stored user:', err);
-      localStorage.removeItem('reviewrescue_user');
-      localStorage.removeItem('reviewrescue_remember_me');
-      setUser(null);
+        } catch (err) {
+          console.error('Failed to fetch profile:', err);
+        }
+      } else {
+        // User is signed out – clear everything
+        setUser(null);
+        localStorage.removeItem('reviewrescue_user');
+        localStorage.removeItem('reviewrescue_remember_me');
+        if (currentRoute !== 'landing' && currentRoute !== 'signin' && currentRoute !== 'signup') {
+          setCurrentRoute('landing');
+        }
+      }
     }
-  } else if (storedUser && rememberMeFlag !== 'true') {
-    // If user exists but remember me is NOT checked, clear the session
-    console.log('🔒 Remember me not checked – clearing session');
-    localStorage.removeItem('reviewrescue_user');
-    setUser(null);
-  }
+  );
 
-  // Check backend credentials status (doesn't require auth)
-  fetchContainerHealth();
+  // ===== CHECK EXISTING SESSION ON LOAD =====
+  const checkSession = async () => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session?.user) {
+      // Session exists – fetch profile
+      try {
+        const res = await fetch('/api/user/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manualUserId: session.user.id })
+        });
+        const data = await res.json();
+        if (data.profile) {
+          setUser(data.profile);
+          localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+      }
+    } else {
+      // No session – clear localStorage if no Remember Me
+      const rememberMe = localStorage.getItem('reviewrescue_remember_me');
+      if (rememberMe !== 'true') {
+        localStorage.removeItem('reviewrescue_user');
+        setUser(null);
+      } else {
+        // If Remember Me is true but no session, we need to re-authenticate silently
+        // For now, just clear it to avoid confusion
+        localStorage.removeItem('reviewrescue_remember_me');
+        localStorage.removeItem('reviewrescue_user');
+        setUser(null);
+      }
+    }
+  };
 
-  // ===== Keep the existing hash handling for Stripe redirects =====
+  checkSession();
+
+  // ===== KEEP HASH HANDLING FOR STRIPE =====
   const handleUrlHashRedirects = () => {
     const hash = window.location.hash;
     if (!hash) return;
@@ -280,24 +300,21 @@
     const successUpgrade = params.get('success') === 'true';
     const updatedPlan = params.get('plan');
     if (successUpgrade && updatedPlan) {
+      // Refresh user profile
       const storedUser = localStorage.getItem('reviewrescue_user');
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         fetch('/api/user/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: parsed.email, manualUserId: parsed.id })
+          body: JSON.stringify({ manualUserId: parsed.id })
         })
         .then(res => res.json())
         .then(data => {
           if (data.profile) {
             setUser(data.profile);
             localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-            if (data.profile.subscription_status === 'active') {
-              triggerToast(`✔ Workspace Upgraded! License plan set to "${updatedPlan.toUpperCase()}" successfully.`, 'success');
-            } else {
-              triggerToast(`Payment received! Verifying license tier securely...`, 'info');
-            }
+            triggerToast(`✔ Workspace Upgraded! License plan set to "${updatedPlan.toUpperCase()}" successfully.`, 'success');
           }
         });
       }
@@ -307,8 +324,15 @@
 
   handleUrlHashRedirects();
   window.addEventListener('hashchange', handleUrlHashRedirects);
-  return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
-}, []);
+
+  // ===== FETCH HEALTH =====
+  fetchContainerHealth();
+
+  return () => {
+    subscription.unsubscribe();
+    window.removeEventListener('hashchange', handleUrlHashRedirects);
+  };
+}, [currentRoute]);
 
     // Fetch feedback and invitations records once authenticated
     const fetchDashboardData = async (userId: string) => {
@@ -424,87 +448,90 @@
 
     // Authentication Handlers
     const handleAuthSubmit = async (action: 'signup' | 'signin') => {
-      if (!authEmail || !authPassword) {
-        setAuthError('Email and Password are required');
+  if (!authEmail || !authPassword) {
+    setAuthError('Email and Password are required');
+    return;
+  }
+  if (action === 'signup' && !authBusinessName) {
+    setAuthError('Please specify your Business Name');
+    return;
+  }
+  if (action === 'signup' && !acceptedTerms) {
+    setAuthError('Please accept the Terms of Service and Privacy Policy to continue.');
+    return;
+  }
+
+  setIsAuthLoading(true);
+  setAuthError(null);
+
+  try {
+    const res = await fetch('/api/user/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: authEmail,
+        password: authPassword,
+        businessName: authBusinessName,
+        action,
+        rememberMe: rememberMe
+      })
+    });
+    const data = await res.json();
+    
+    if (res.ok) {
+      if (data.verificationRequired) {
+        triggerToast('Check your email to confirm your account.', 'success');
+        setAuthBusinessName('');
+        setAuthPassword('');
+        setAuthError('Your account has been created successfully. We have sent a confirmation email to your email address. Please follow the instructions in the confirmation email in order to activate your account.');
+        setCurrentRoute('signin');
         return;
       }
-      if (action === 'signup' && !authBusinessName) {
-        setAuthError('Please specify your Business Name');
-        return;
-      }
 
-      if (action === 'signup' && !acceptedTerms) {
-      setAuthError('Please accept the Terms of Service and Privacy Policy to continue.');
-      return;
-    }
-
-      setIsAuthLoading(true);
-      setAuthError(null);
-
-      try {
-        const res = await fetch('/api/user/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: authEmail,
-            password: authPassword,
-            businessName: authBusinessName,
-            action,
-            rememberMe: rememberMe // add this
-          })
-        });
-        const data = await res.json();
+      if (data.profile) {
+        setUser(data.profile);
+        localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
         
-        if (res.ok) {
-          if (data.verificationRequired) {
-            triggerToast('Check your email to confirm your account. Confirm the link, then log in.', 'success');
-            setAuthBusinessName('');
-            setAuthPassword('');
-            setAuthError('Your account has been created successfully. We have sent a confirmation email to your email address. Please follow the instructions in the confirmation email in order to activate your account.');
-            setCurrentRoute('signin');
-            return;
-          }
-
-          if (data.profile) {
-  setUser(data.profile);
-  localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-  
-  // ─── STORE REMEMBER ME FLAG ──────────────────────────────────
-  if (rememberMe) {
-    localStorage.setItem('reviewrescue_remember_me', 'true');
-  } else {
-    localStorage.removeItem('reviewrescue_remember_me');
-  }
-  
-  // Check if onboarding modal wizard is required
-  if (!data.profile.onboarded) {
-    setShowOnboarding(true);
-  } else {
-    setCurrentRoute('dashboard');
-  }
-  triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
-}
+        if (rememberMe) {
+          localStorage.setItem('reviewrescue_remember_me', 'true');
         } else {
-          setAuthError(data.error || 'Authentication failed, please verify credentials or connection settings.');
+          localStorage.removeItem('reviewrescue_remember_me');
         }
-      } catch (err: any) {
-        console.error('System connection failure:', err);
-        setAuthError('Connection failure: Please verify Supabase active credentials in Secrets panel.');
-      } finally {
-        setIsAuthLoading(false);
+        
+        if (!data.profile.onboarded) {
+          setShowOnboarding(true);
+        } else {
+          setCurrentRoute('dashboard');
+        }
+        triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
       }
-    };
+    } else {
+      setAuthError(data.error || 'Authentication failed, please verify credentials or connection settings.');
+    }
+  } catch (err: any) {
+    console.error('System connection failure:', err);
+    setAuthError('Connection failure: Please verify Supabase active credentials in Secrets panel.');
+  } finally {
+    setIsAuthLoading(false);
+  }
+};
 
-    const handleSignOut = () => {
-      setUser(null);
-      localStorage.removeItem('reviewrescue_user');
-      setReviews([]);
-      setInvites([]);
-      setNegativeAlerts([]);
-      setCurrentRoute('landing');
-      triggerToast('Logged out of Rewakely systems.', 'info');
-    };
-
+    const handleSignOut = async () => {
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (err) {
+    console.error('Sign out error:', err);
+  }
+  
+  setUser(null);
+  localStorage.removeItem('reviewrescue_user');
+  localStorage.removeItem('reviewrescue_remember_me');
+  setReviews([]);
+  setInvites([]);
+  setNegativeAlerts([]);
+  setCurrentRoute('landing');
+  triggerToast('Logged out of Rewakely systems.', 'info');
+};
     // Wizard Onboarding Complete Save
     const handleOnboardingSave = async (data: any) => {
       if (!user) return;
@@ -1734,7 +1761,7 @@
     className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-colors"
   />
   <label htmlFor="rememberMe" className="text-xs text-slate-500 cursor-pointer select-none hover:text-slate-700 transition-colors">
-    🔒 Remember me for 30 days
+     Remember me for 30 days
   </label>
 </div>
 

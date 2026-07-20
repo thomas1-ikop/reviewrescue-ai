@@ -27,8 +27,26 @@ declare global {
 
 
 // -------------------- AUTHENTICATION MIDDLEWARE --------------------
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
+const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const userId = req.headers['x-user-id'] as string | undefined;
+  
+  // ✅ Also check for Authorization header (JWT)
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const { data: { user }, error } = await supabaseClient.auth.getUser(token);
+      if (error || !user) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+      req.userId = user.id;
+      return next();
+    } catch (err) {
+      // Fall through to userId check
+    }
+  }
+  
   if (!userId) {
     return res.status(401).json({ error: 'Unauthorized: missing user ID' });
   }
@@ -2196,6 +2214,9 @@ Aesthetic Tone: ${profile.tone}`;
 
   res.json({ reviews: addedReviews });
 });
+
+
+
 
 app.get('/api/autopilot/logs', async (req, res) => {
   const userId = req.headers['x-user-id'] as string || req.query.userId as string;

@@ -74,19 +74,35 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
   }, [userId]);
 
   // ── QR Code Generation ──
-  useEffect(() => {
-    if (userId && !qrGeneratedRef.current) {
-      qrGeneratedRef.current = true;
-      const url = `https://rewakely.com/review?business=${userId}`;
-      QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
-        if (!err) {
-          setQrCodeDataUrl(dataUrl);
-        } else {
-          console.error('[QR] QR code generation error:', err);
-        }
-      });
+  // You need placeId here too
+// Option 1: Fetch it from an API
+const [placeId, setPlaceId] = useState<string | null>(null);
+
+useEffect(() => {
+  const fetchBusiness = async () => {
+    try {
+      const res = await fetch(`/api/business/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlaceId(data.place_id);
+      }
+    } catch (err) {
+      console.error('Failed to fetch business:', err);
     }
-  }, [userId]);
+  };
+  fetchBusiness();
+}, [userId]);
+
+// Then generate QR
+useEffect(() => {
+  if (userId && placeId && !qrGeneratedRef.current) {
+    qrGeneratedRef.current = true;
+    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
+    QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
+      if (!err) setQrCodeDataUrl(dataUrl);
+    });
+  }
+}, [userId, placeId]);
 
   // ─── Refresh Invites ────────────────────────────────────────────────
   const refreshInvites = async () => {
