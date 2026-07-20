@@ -208,80 +208,64 @@
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  // ===== PUBLIC ROUTES =====
+  // ===== RESTORE USER FROM LOCALSTORAGE (WITH REMEMBER ME) =====
+  const storedUser = localStorage.getItem('reviewrescue_user');
+  const rememberMeFlag = localStorage.getItem('reviewrescue_remember_me');
+
+  // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
     return;
   }
 
-  // ===== CHECK SESSION ON LOAD (ONCE) =====
-  const checkSession = async () => {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session?.user) {
-      try {
-        const res = await fetch('/api/user/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ manualUserId: session.user.id })
-        });
-        const data = await res.json();
-        if (data.profile) {
-          setUser(data.profile);
-          localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-        }
-      } catch (err) {
-        console.error('Failed to fetch profile:', err);
-      }
-    } else {
-      // No session – check Remember Me
-      const storedUser = localStorage.getItem('reviewrescue_user');
-      const rememberMe = localStorage.getItem('reviewrescue_remember_me');
+  // ─── AUTO-LOGIN ONLY IF "REMEMBER ME" IS CHECKED ──────────────
+  if (storedUser && rememberMeFlag === 'true') {
+    try {
+      const parsed = JSON.parse(storedUser);
+      // Immediately set the user to avoid the "logged out" flash
+      setUser(parsed);
+      setCurrentRoute('dashboard');
       
-      // If we have a stored user but no session, clear it (session expired)
-      if (storedUser) {
-        localStorage.removeItem('reviewrescue_user');
-        localStorage.removeItem('reviewrescue_remember_me');
-        setUser(null);
-      }
-    }
-  };
-
-  checkSession();
-
-  // ===== AUTH STATE LISTENER (KEEP IN SYNC) =====
-  const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-      console.log('🔐 Auth event:', event, session?.user?.email);
-      
-      if (session?.user) {
-        // User signed in – fetch profile
-        try {
-          const res = await fetch('/api/user/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ manualUserId: session.user.id })
-          });
-          const data = await res.json();
+      // Then fetch the latest profile from the database
+      fetch('/api/user/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manualUserId: parsed.id })
+      })
+        .then(res => res.json())
+        .then(data => {
           if (data.profile) {
             setUser(data.profile);
             localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
+          } else {
+            // If the API doesn't return a profile, the user might have been deleted – log them out
+            localStorage.removeItem('reviewrescue_user');
+            localStorage.removeItem('reviewrescue_remember_me');
+            setUser(null);
+            setCurrentRoute('landing');
           }
-        } catch (err) {
-          console.error('Failed to fetch profile:', err);
-        }
-      } else {
-        // User signed out – clear everything
-        setUser(null);
-        localStorage.removeItem('reviewrescue_user');
-        localStorage.removeItem('reviewrescue_remember_me');
-        if (currentRoute !== 'landing' && currentRoute !== 'signin' && currentRoute !== 'signup') {
-          setCurrentRoute('landing');
-        }
-      }
+        })
+        .catch(err => {
+          console.error('Failed to refresh user profile:', err);
+          // Keep the stored user as fallback
+        });
+    } catch (err) {
+      console.error('Failed to parse stored user:', err);
+      localStorage.removeItem('reviewrescue_user');
+      localStorage.removeItem('reviewrescue_remember_me');
+      setUser(null);
     }
-  );
+  } else if (storedUser && rememberMeFlag !== 'true') {
+    // If user exists but remember me is NOT checked, clear the session
+    console.log('🔒 Remember me not checked – clearing session');
+    localStorage.removeItem('reviewrescue_user');
+    setUser(null);
+  }
 
-  // ===== KEEP HASH HANDLING FOR STRIPE =====
+  // Check backend credentials status (doesn't require auth)
+  fetchContainerHealth();
+
+  // ===== Keep the existing hash handling for Stripe redirects =====
   const handleUrlHashRedirects = () => {
     const hash = window.location.hash;
     if (!hash) return;
@@ -319,14 +303,7 @@
 
   handleUrlHashRedirects();
   window.addEventListener('hashchange', handleUrlHashRedirects);
-
-  // ===== FETCH HEALTH =====
-  fetchContainerHealth();
-
-  return () => {
-    subscription.unsubscribe();
-    window.removeEventListener('hashchange', handleUrlHashRedirects);
-  };
+  return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
 }, [currentRoute]);
 
     // Fetch feedback and invitations records once authenticated
@@ -511,13 +488,7 @@
   }
 };
 
-    const handleSignOut = async () => {
-  try {
-    await supabaseClient.auth.signOut();
-  } catch (err) {
-    console.error('Sign out error:', err);
-  }
-  
+    const handleSignOut = () => {
   setUser(null);
   localStorage.removeItem('reviewrescue_user');
   localStorage.removeItem('reviewrescue_remember_me');
@@ -1746,19 +1717,21 @@
     </div>
   )}
 
-  {/* ─── REMEMBER ME ──────────────────────────────────────────────── */}
-<div className="flex items-center gap-2 mt-2">
-  <input
-    type="checkbox"
-    id="rememberMe"
-    checked={rememberMe}
-    onChange={(e) => setRememberMe(e.target.checked)}
-    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-colors"
-  />
-  <label htmlFor="rememberMe" className="text-xs text-slate-500 cursor-pointer select-none hover:text-slate-700 transition-colors">
-     Remember me for 30 days
-  </label>
-</div>
+{/* ─── REMEMBER ME (Sign-in only) ────────────────────────────── */}
+{currentRoute === 'signin' && (
+  <div className="flex items-center gap-2 mt-2">
+    <input
+      type="checkbox"
+      id="rememberMe"
+      checked={rememberMe}
+      onChange={(e) => setRememberMe(e.target.checked)}
+      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-colors"
+    />
+    <label htmlFor="rememberMe" className="text-xs text-slate-500 cursor-pointer select-none hover:text-slate-700 transition-colors">
+      Remember me for 30 days
+    </label>
+  </div>
+)}
 
   <button
   onClick={() => handleAuthSubmit(currentRoute as 'signup' | 'signin')}
