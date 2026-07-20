@@ -208,96 +208,37 @@
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  // ===== RESTORE USER FROM LOCALSTORAGE (WITH REMEMBER ME) =====
-  const storedUser = localStorage.getItem('reviewrescue_user');
-  const rememberMeFlag = localStorage.getItem('reviewrescue_remember_me');
-
-  // ✅ SKIP AUTO-LOGIN FOR PUBLIC ROUTES
+  // ===== PUBLIC ROUTES =====
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
     return;
   }
 
-  // ─── AUTO-LOGIN ONLY IF "REMEMBER ME" IS CHECKED ──────────────
-  if (storedUser && rememberMeFlag === 'true') {
+  // ===== ONLY RESTORE FROM LOCALSTORAGE =====
+  const storedUser = localStorage.getItem('reviewrescue_user');
+  if (storedUser) {
     try {
       const parsed = JSON.parse(storedUser);
-      // Immediately set the user to avoid the "logged out" flash
       setUser(parsed);
-      setCurrentRoute('dashboard');
       
-      // Then fetch the latest profile from the database
-      fetch('/api/user/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manualUserId: parsed.id })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.profile) {
-            setUser(data.profile);
-            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-          } else {
-            // If the API doesn't return a profile, the user might have been deleted – log them out
-            localStorage.removeItem('reviewrescue_user');
-            localStorage.removeItem('reviewrescue_remember_me');
-            setUser(null);
-            setCurrentRoute('landing');
-          }
-        })
-        .catch(err => {
-          console.error('Failed to refresh user profile:', err);
-          // Keep the stored user as fallback
-        });
+      // If we're on a public route but have a user, go to dashboard
+      if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+        setCurrentRoute('dashboard');
+      }
     } catch (err) {
       console.error('Failed to parse stored user:', err);
       localStorage.removeItem('reviewrescue_user');
-      localStorage.removeItem('reviewrescue_remember_me');
-      setUser(null);
     }
-  } else if (storedUser && rememberMeFlag !== 'true') {
-    // If user exists but remember me is NOT checked, clear the session
-    console.log('🔒 Remember me not checked – clearing session');
-    localStorage.removeItem('reviewrescue_user');
-    setUser(null);
   }
 
-  // Check backend credentials status (doesn't require auth)
-  fetchContainerHealth();
-
-  // ===== Keep the existing hash handling for Stripe redirects =====
+  // ===== HASH HANDLING =====
   const handleUrlHashRedirects = () => {
     const hash = window.location.hash;
     if (!hash) return;
-
     const params = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
-    
     const routeParam = params.get('currentRoute');
     if (routeParam) {
       setCurrentRoute(routeParam);
-    }
-
-    const successUpgrade = params.get('success') === 'true';
-    const updatedPlan = params.get('plan');
-    if (successUpgrade && updatedPlan) {
-      const storedUser = localStorage.getItem('reviewrescue_user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        fetch('/api/user/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ manualUserId: parsed.id })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.profile) {
-            setUser(data.profile);
-            localStorage.setItem('reviewrescue_user', JSON.stringify(data.profile));
-            triggerToast(`✔ Workspace Upgraded! License plan set to "${updatedPlan.toUpperCase()}" successfully.`, 'success');
-          }
-        });
-      }
-      window.location.hash = '#currentRoute=dashboard';
     }
   };
 
