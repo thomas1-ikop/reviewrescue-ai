@@ -356,7 +356,7 @@ useEffect(() => {
     </div>
   ) : (
     <div className="text-sm text-slate-400 flex items-center gap-2">
-      <span className="animate-pulse">⏳</span> Generating QR code...
+      <span className="animate-pulse">⏳</span> Generating QR code...     Not working? Try signing out.
     </div>
   )}
 </div>
