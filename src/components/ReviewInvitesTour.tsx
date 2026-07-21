@@ -39,7 +39,7 @@ const ReviewInvitesTour: React.FC<ReviewInvitesTourProps> = ({ isOpen, onComplet
     {
       id: 'qr',
       title: ' QR Code',
-      description: 'Generate a QR code that customers can scan to leave a review instantly. Print it and display it in your store for quick, frictionless feedback – no typing needed!',
+      description: 'Generate a QR code that customers can scan to leave a review instantly. Print it and display it in your store for quick, frictionless feedback – no typing needed! Show it to happy customers for an automatic 5 star review!',
       icon: <QrCode className="w-6 h-6 text-blue-500" />,
       target: '#qr-code-section',
     },

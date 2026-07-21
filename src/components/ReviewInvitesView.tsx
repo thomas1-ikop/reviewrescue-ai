@@ -132,16 +132,7 @@ useEffect(() => {
   });
 }, [userId, placeId]);
 
-// Then generate QR
-useEffect(() => {
-  if (userId && placeId && !qrGeneratedRef.current) {
-    qrGeneratedRef.current = true;
-    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
-    QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
-      if (!err) setQrCodeDataUrl(dataUrl);
-    });
-  }
-}, [userId, placeId]);
+ 
 
   // ─── Refresh Invites ────────────────────────────────────────────────
   const refreshInvites = async () => {
@@ -360,7 +351,7 @@ useEffect(() => {
     <div className="flex items-center gap-4 mt-3">
       <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
       <span className="text-[10px] text-slate-400 break-all">
-        Checkout the link: rewakely.com/review?business={userId}
+        Checkout the link: https://search.google.com/local/writereview?placeid=${placeId};
       </span>
     </div>
   ) : (
