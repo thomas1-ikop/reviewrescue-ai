@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react';
-import { Settings, Shield, RefreshCw, Smartphone, Key, CircleDot, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Settings, Shield, RefreshCw, Smartphone, Key, CircleDot, AlertTriangle, ExternalLink, Zap, Copy } from 'lucide-react';
 import { Profile } from '../types';
 import { supabaseClient } from '../lib/supabaseClient';
+
 
 interface SettingsViewProps {
   profile: Profile;
@@ -162,6 +163,34 @@ export default function SettingsView({
     }
   };
 
+
+  // ─── REGENERATE API KEY ──────────────────────────────────────────
+const handleRegenerateApiKey = async () => {
+  if (!confirm('Are you sure you want to regenerate your API key? This will break any existing Zapier integrations.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/user/regenerate-api-key', {
+      method: 'POST',
+      headers: { 'x-user-id': profile.id }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      // Update the profile with new API key
+      const updatedProfile = { ...profile, zapier_api_key: data.apiKey };
+      // You'll need to pass this up to parent component
+      triggerToast('✅ New API key generated!', 'success');
+      // Refresh the page or update state
+      window.location.reload();
+    } else {
+      triggerToast(data.error || 'Failed to regenerate API key', 'warn');
+    }
+  } catch (err) {
+    triggerToast('Something went wrong', 'warn');
+  }
+};
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 items-start">
       
@@ -259,6 +288,94 @@ export default function SettingsView({
             {isUpdating ? 'Saving Changes...' : 'Save Profile Settings'}
           </button>
         </form>
+
+
+        {/* ─── ZAPIER INTEGRATION ────────────────────────────────────────── */}
+<div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5 mt-6">
+  <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+    <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
+      <Zap className="w-5 h-5" />
+    </div>
+    <div>
+      <h3 className="font-bold text-slate-900 text-sm">Zapier Integration</h3>
+      <p className="text-xs text-slate-400 font-sans">
+        Connect Rewakely with 7,000+ apps through Zapier
+      </p>
+    </div>
+  </div>
+
+  <div className="p-4 bg-purple-50/50 border border-purple-200 rounded-xl space-y-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Your API Key</span>
+        <div className="flex items-center gap-2 mt-1">
+          <code className="text-xs font-mono bg-white px-3 py-1.5 rounded-lg border border-purple-200">
+            {profile.zapier_api_key || 'No API key generated yet'}
+          </code>
+          {profile.zapier_api_key && (
+  <button
+    onClick={() => {
+      navigator.clipboard.writeText(profile.zapier_api_key!);
+      triggerToast('✅ API key copied to clipboard!', 'success');
+    }}
+    className="p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition"
+  >
+    <Copy className="w-4 h-4" />
+  </button>
+)}
+        </div>
+      </div>
+      <button
+        onClick={handleRegenerateApiKey}
+        className="text-xs font-medium text-purple-600 hover:text-purple-800 transition"
+      >
+        Regenerate
+      </button>
+    </div>
+
+    <div className="space-y-2">
+      <p className="text-xs text-slate-500">
+        1. Copy your API key above.
+      </p>
+      <p className="text-xs text-slate-500">
+        2. Go to{' '}
+        <a 
+          href="https://zapier.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-purple-600 hover:underline font-medium"
+        >
+          Zapier.com
+        </a>{' '}
+        and create a new Zap.
+      </p>
+      <p className="text-xs text-slate-500">
+        3. Choose any trigger (e.g., QuickBooks, Square, Jobber).
+      </p>
+      <p className="text-xs text-slate-500">
+        4. Add "Rewakely" as the action and select "Send Review Invite".
+      </p>
+      <p className="text-xs text-slate-500">
+        5. Connect your Rewakely account and paste your API key.
+      </p>
+      <p className="text-xs text-slate-500">
+        6. Map the fields and turn on your Zap!
+      </p>
+    </div>
+
+    <a
+      href="https://zapier.com/apps/rewakely/integrations"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition"
+    >
+      <ExternalLink className="w-4 h-4" />
+      Connect to Zapier
+    </a>
+  </div>
+</div>
+
+        
 
         {/* Subscription Control Panel (Upgrades & Cancellation) */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">

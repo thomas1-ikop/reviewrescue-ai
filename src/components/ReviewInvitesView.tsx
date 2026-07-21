@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Mail, Smartphone, Upload, Send, Lock, Loader2, Clock, Sparkles, Trash2, Download
+  Mail, Smartphone, Upload, Send, Lock, Loader2, Clock, Sparkles, Trash2, Download, Zap, Settings
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import ReviewInvitesTour from './ReviewInvitesTour';
@@ -434,6 +434,44 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
           {isImporting ? 'Importing...' : 'Import & Schedule'}
         </button>
       </div>
+
+      {/* ─── ZAPIER INTEGRATION ────────────────────────────────────────── */}
+<div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
+  <div className="flex items-center gap-2 mb-4">
+    <div className="p-2 bg-purple-50 rounded-lg text-purple-600">
+      <Zap className="w-5 h-5" />
+    </div>
+    <h3 className="font-semibold text-slate-800">Zapier Integration</h3>
+    <span className="text-[9px] text-white bg-purple-600 px-2 py-0.5 rounded-full">Pro</span>
+  </div>
+
+  <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 space-y-3">
+    <p className="text-xs text-slate-600 leading-relaxed">
+      Connect Rewakely with <strong>QuickBooks, Square, Jobber,</strong> and <strong>7,000+ other apps</strong> through Zapier.
+    </p>
+    <div className="flex flex-wrap gap-2">
+      <span className="text-[10px] bg-white px-2 py-1 rounded border border-purple-200">QuickBooks</span>
+      <span className="text-[10px] bg-white px-2 py-1 rounded border border-purple-200">Square</span>
+      <span className="text-[10px] bg-white px-2 py-1 rounded border border-purple-200">Jobber</span>
+      <span className="text-[10px] bg-white px-2 py-1 rounded border border-purple-200">+ 7,000 more</span>
+    </div>
+    <p className="text-[10px] text-slate-400">
+      Your API key is available in the Settings tab.
+    </p>
+    <button
+      onClick={() => {
+        // Navigate to Settings tab
+        const event = new CustomEvent('navigateToSettings');
+        window.dispatchEvent(event);
+        // Or use your router if you have one
+      }}
+      className="w-full flex items-center justify-center gap-2 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition"
+    >
+      <Settings className="w-4 h-4" />
+      Go to Settings to get your API key
+    </button>
+  </div>
+</div>
 
       {/* ─── SCHEDULED INVITES ──────────────────────────────────────────── */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 scheduled-invites-section">

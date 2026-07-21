@@ -700,6 +700,34 @@ async function sendWelcomeEmail(email: string, businessName: string) {
 }
 
 
+// ─── REGENERATE ZAPIER API KEY ──────────────────────────────────
+app.post('/api/user/regenerate-api-key', authenticate, async (req, res) => {
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+
+  try {
+    const newApiKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    const { data, error } = await supabaseServiceClient
+      .from('profiles')
+      .update({ zapier_api_key: newApiKey })
+      .eq('id', userId)
+      .select('zapier_api_key')
+      .single();
+
+    if (error) throw error;
+
+    res.json({ apiKey: data.zapier_api_key });
+  } catch (err: any) {
+    console.error('Regenerate API key error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 // ─── PASSWORD RESET (USING RESEND API DIRECTLY) ──────────────────
 app.post('/api/auth/reset-password-request', async (req, res) => {
@@ -898,6 +926,7 @@ app.post('/api/user/auth', async (req, res) => {
         onboarded: true,
         tour_completed: false,
         verified: false,
+        zapier_api_key: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15), // ✅ ADD THIS
         created_at: new Date().toISOString()
       };
 
@@ -1054,6 +1083,97 @@ app.post('/api/user/auth', async (req, res) => {
 });
 
 
+<<<<<<< Updated upstream
+=======
+// ─── ZAPIER WEBHOOK ENDPOINT ──────────────────────────────────
+app.post('/api/zapier/webhook', async (req, res) => {
+  try {
+    const { customerName, customerEmail, customerPhone, visitDate } = req.body;
+    const apiKey = req.headers['x-api-key'];
+
+    // 1. Validate API key (you'll create this later)
+    if (!apiKey) {
+  return res.status(401).json({ error: 'API key required' });
+}
+// The key will be validated when we look up the user
+
+    // 2. Get user by API key (simplified – you'd store this in profiles)
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('id, send_delay')
+      .eq('zapier_api_key', apiKey)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 3. Schedule the customer using your existing logic
+    const userId = profile.id;
+    const delay = profile.send_delay || 2;
+    const visitDateObj = visitDate ? new Date(visitDate) : new Date();
+    const scheduledDate = new Date(visitDateObj);
+    scheduledDate.setDate(scheduledDate.getDate() + delay);
+
+    const insertData = {
+      user_id: userId,
+      customer_name: customerName,
+      email: customerEmail,
+      phone_number: customerPhone || null,
+      type: customerEmail ? 'email' : 'sms',
+      status: 'pending',
+      scheduled_at: scheduledDate.toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    await supabaseServiceClient
+      .from('scheduled_customers')
+      .insert([insertData]);
+
+    res.json({ success: true, message: 'Customer scheduled for review invite' });
+  } catch (err: any) {
+    console.error('Zapier webhook error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── ZAPIER VERIFY ENDPOINT ──────────────────────────────────
+app.get('/api/zapier/verify', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+
+    // 1. Validate API key
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
+    }
+
+    // 2. Look up user by API key (you'll need this column)
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('id, business_name, email')
+      .eq('zapier_api_key', apiKey)
+      .single();
+
+    if (error || !profile) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    // 3. Return user info (so Zapier knows it worked)
+    res.json({
+      success: true,
+      user: {
+        id: profile.id,
+        business_name: profile.business_name,
+        email: profile.email
+      }
+    });
+  } catch (err: any) {
+    console.error('Zapier verify error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+>>>>>>> Stashed changes
 // ─── WAITLIST ENDPOINT ──────────────────────────────────────────────
 
 app.post('/api/waitlist', async (req, res) => {

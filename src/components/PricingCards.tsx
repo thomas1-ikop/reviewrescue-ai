@@ -28,6 +28,7 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
         'Email Review Invites',
         'QR Code Generation for in-store',
         'Feedback Collection with duplicate prevention',
+        'Integration with your customer database (7,000+ apps)',
         '24/7 Email Support',
       ],
       ctaText: 'Start Pro Plan',

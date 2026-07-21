@@ -20,6 +20,7 @@ export interface Profile {
   tour_completed?: boolean;
   created_at?: string;
   subscription_expires_at?: string | null;
+  zapier_api_key: string | null;
   place_id?: string | null;
 }
 
