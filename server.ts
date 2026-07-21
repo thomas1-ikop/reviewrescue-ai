@@ -1072,6 +1072,93 @@ app.post('/api/user/auth', async (req, res) => {
 });
 
 
+// ─── ZAPIER WEBHOOK ENDPOINT ──────────────────────────────────
+app.post('/api/zapier/webhook', async (req, res) => {
+  try {
+    const { customerName, customerEmail, customerPhone, visitDate } = req.body;
+    const apiKey = req.headers['x-api-key'];
+
+    // 1. Validate API key (you'll create this later)
+    if (!apiKey || apiKey !== process.env.ZAPIER_API_KEY) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    // 2. Get user by API key (simplified – you'd store this in profiles)
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('id, send_delay')
+      .eq('zapier_api_key', apiKey)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 3. Schedule the customer using your existing logic
+    const userId = profile.id;
+    const delay = profile.send_delay || 2;
+    const visitDateObj = visitDate ? new Date(visitDate) : new Date();
+    const scheduledDate = new Date(visitDateObj);
+    scheduledDate.setDate(scheduledDate.getDate() + delay);
+
+    const insertData = {
+      user_id: userId,
+      customer_name: customerName,
+      email: customerEmail,
+      phone_number: customerPhone || null,
+      type: customerEmail ? 'email' : 'sms',
+      status: 'pending',
+      scheduled_at: scheduledDate.toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    await supabaseServiceClient
+      .from('scheduled_customers')
+      .insert([insertData]);
+
+    res.json({ success: true, message: 'Customer scheduled for review invite' });
+  } catch (err: any) {
+    console.error('Zapier webhook error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── ZAPIER VERIFY ENDPOINT ──────────────────────────────────
+app.get('/api/zapier/verify', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+
+    // 1. Validate API key
+    if (!apiKey) {
+      return res.status(401).json({ error: 'API key required' });
+    }
+
+    // 2. Look up user by API key (you'll need this column)
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('id, business_name, email')
+      .eq('zapier_api_key', apiKey)
+      .single();
+
+    if (error || !profile) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+
+    // 3. Return user info (so Zapier knows it worked)
+    res.json({
+      success: true,
+      user: {
+        id: profile.id,
+        business_name: profile.business_name,
+        email: profile.email
+      }
+    });
+  } catch (err: any) {
+    console.error('Zapier verify error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── WAITLIST ENDPOINT ──────────────────────────────────────────────
 
 app.post('/api/waitlist', async (req, res) => {
@@ -1927,6 +2014,7 @@ setInterval(async () => {
             sent_at: new Date().toISOString(),
           }]);
       }
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   } catch (err) {
     console.error('Auto-send scheduler error:', err);
