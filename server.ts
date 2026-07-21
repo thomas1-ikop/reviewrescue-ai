@@ -1706,10 +1706,11 @@ ${rawText}
       .trim();
 
     let customers: Array<{
-      customer_name: string | null;
-      phone_number: string | null;
-      visit_date: string | null;
-    }>;
+  customer_name: string | null;
+  phone_number: string | null;
+  email: string | null;        // ✅ ADD THIS
+  visit_date: string | null;
+}>;
 
     try {
       customers = JSON.parse(cleaned);
@@ -1719,11 +1720,22 @@ ${rawText}
       return res.status(500).json({ error: "AI returned invalid JSON" });
     }
 
-    const sanitised = customers.map((c) => ({
-      customer_name: c.customer_name ?? null,
-      phone_number: c.phone_number ?? null,
-      visit_date: c.visit_date ?? null,
-    }));
+    // ─── POST-PROCESS: Fix mis-parsed emails ──────────────────────
+const sanitised = customers.map((c) => {
+  // If phone_number looks like an email (contains @) and email is null, move it to email
+  if (c.phone_number && c.phone_number.includes('@') && !c.email) {
+    console.log(`🔧 Fixing mis-parsed email: "${c.phone_number}" → moving to email field`);
+    c.email = c.phone_number;
+    c.phone_number = null;
+  }
+
+  return {
+    customer_name: c.customer_name ?? null,
+    phone_number: c.phone_number ?? null,
+    email: c.email ?? null,
+    visit_date: c.visit_date ?? null,
+  };
+});
 
     return res.json({ customers: sanitised });
   } catch (err: unknown) {
