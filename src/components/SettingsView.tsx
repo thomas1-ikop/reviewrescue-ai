@@ -299,48 +299,70 @@ export default function SettingsView({
             </div>
           </div>
 
-          {/* Action Triggers */}
-          <div className="space-y-3 font-sans">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Subscription Control</span>
-            
-            <button
-              onClick={handleUpgradeClick}
-              disabled={isTriggeringCheckout || isOpeningPortal}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 transition shadow-md disabled:opacity-50 cursor-pointer"
-              id="settings-btn-upgrade-plan"
-            >
-              {isTriggeringCheckout ? 'Calling Secure Checkout...' : profile.subscription_status === 'active' ? 'Manage via Stripe Customer Portal ➔' : 'Activate Pro Subscription ($49/mo) ➔'}
-            </button>
+          {/* ─── SUBSCRIPTION CONTROL ─────────────────────────────────────── */}
+<div className="space-y-3 font-sans">
+  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Subscription Control</span>
+  
+  {profile.stripe_customer_id ? (
+    // ─── HAS STRIPE CUSTOMER ID – Show normal buttons ──────────
+    <>
+      <button
+        onClick={handleUpgradeClick}
+        disabled={isTriggeringCheckout || isOpeningPortal}
+        className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 transition shadow-md disabled:opacity-50 cursor-pointer"
+        id="settings-btn-upgrade-plan"
+      >
+        {isTriggeringCheckout ? 'Calling Secure Checkout...' : profile.subscription_status === 'active' ? 'Manage via Stripe Customer Portal ➔' : 'Activate Pro Subscription ($49/mo) ➔'}
+      </button>
 
-            {profile.subscription_status === 'active' && (
-              <button
-                onClick={handleCancelOrManageSubscription}
-                disabled={isOpeningPortal}
-                className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-red-200 hover:bg-red-50 text-red-650 text-xs font-bold py-3 transition shadow-sm disabled:opacity-50 cursor-pointer"
-                id="btn-cancel-subscription"
-              >
-                {isOpeningPortal ? (
-                  <>
-                    <RefreshCw size={12} className="animate-spin" /> Redirecting...
-                  </>
-                ) : (
-                  <>
-                    Cancel / Terminate Subscription
-                    <ExternalLink size={12} />
-                  </>
-                )}
-              </button>
-            )}
+      {profile.subscription_status === 'active' && (
+        <button
+          onClick={handleCancelOrManageSubscription}
+          disabled={isOpeningPortal}
+          className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-red-200 hover:bg-red-50 text-red-650 text-xs font-bold py-3 transition shadow-sm disabled:opacity-50 cursor-pointer"
+          id="btn-cancel-subscription"
+        >
+          {isOpeningPortal ? (
+            <>
+              <RefreshCw size={12} className="animate-spin" /> Redirecting...
+            </>
+          ) : (
+            <>
+              Cancel / Terminate Subscription
+              <ExternalLink size={12} />
+            </>
+          )}
+        </button>
+      )}
+    </>
+  ) : (
+    // ─── NO STRIPE CUSTOMER ID – Show info message ──────────────
+    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 space-y-2">
+      <p className="font-semibold">⚠️ Billing management is not available for this account.</p>
+      {profile.subscription_status === 'active' ? (
+        <p>Your subscription is active but it was set up in test mode. To manage billing, please contact support.</p>
+      ) : (
+        <p>Subscribe to a plan to enable billing management.</p>
+      )}
+      <button
+        onClick={handleUpgradeClick}
+        disabled={isTriggeringCheckout}
+        className="w-full mt-2 flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 transition shadow-md disabled:opacity-50"
+      >
+        {isTriggeringCheckout ? 'Processing...' : 'Subscribe Now ($49/mo)'}
+      </button>
+    </div>
+  )}
 
-            {/* ✅ Change Password Button (opens modal) */}
-            <button
-              onClick={() => setShowChangePassword(true)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold py-3 transition shadow-sm"
-            >
-              <Key size={14} />
-              Change Password
-            </button>
-          </div>
+  {/* Change Password button always visible */}
+  <button
+    onClick={() => setShowChangePassword(true)}
+    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold py-3 transition shadow-sm"
+  >
+    <Key size={14} />
+    Change Password
+  </button>
+</div>
         </div>
       </div>
 
