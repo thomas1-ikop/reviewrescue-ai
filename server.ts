@@ -1931,7 +1931,7 @@ setInterval(async () => {
   } catch (err) {
     console.error('Auto-send scheduler error:', err);
   }
-}, 60 * 60 * 1000); // every hour
+}, 15 * 60 * 1000); // every hour
 
 
 
