@@ -439,7 +439,7 @@ useEffect(() => {
         <textarea
           value={bulkText}
           onChange={(e) => setBulkText(e.target.value)}
-          placeholder="Name, Email, Phone, Date\nJohn, john@example.com, +15551234567, 2026-07-01"
+          placeholder="Name, Email, Phone, Date | John, john@example.com, +15551234567, 2026-07-01"
           className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition min-h-[100px]"
         />
         <button

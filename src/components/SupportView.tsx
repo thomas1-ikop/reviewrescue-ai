@@ -38,7 +38,7 @@ export default function SupportView({ profile }: SupportViewProps) {
           <Calendar className="w-5 h-5 text-blue-600" />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-slate-800">📅 Book a Demo</h3>
+          <h3 className="font-semibold text-slate-800">📅 Book a Demo or Question Meeting</h3>
           <p className="text-xs text-slate-500">Schedule a 20-minute call with Thomas, founder of Rewakely</p>
         </div>
         <a

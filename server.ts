@@ -3744,54 +3744,71 @@ app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'No customers provided' });
   }
 
-  // Get the user's current send_delay
+  // ✅ GET USER'S PLAN FIRST
   const { data: profile, error: profErr } = await supabaseServiceClient
     .from('profiles')
-    .select('send_delay')
+    .select('send_delay, subscription_plan')
     .eq('id', userId)
     .single();
 
   if (profErr) {
-    console.error('Failed to fetch profile for delay:', profErr);
+    console.error('Failed to fetch profile:', profErr);
     return res.status(500).json({ error: 'Failed to fetch user settings' });
   }
 
   const delay = profile?.send_delay ?? 2;
+  const isPremium = profile?.subscription_plan === 'premium'; // ✅ ONLY Premium gets SMS
 
   const inserted: any[] = [];
   const errors: any[] = [];
 
   for (const cust of customers) {
-    // ─── DETERMINE TYPE BASED ON AVAILABLE DATA ──────────────────
-    let type = 'sms';
-    let phoneNumber = cust.phone_number || null;
+    // ─── DETERMINE TYPE BASED ON USER PLAN ──────────────────
+    let type: 'sms' | 'email' = 'email';
+    let phoneNumber = null;
     let email = cust.email || null;
 
-    // If no phone number but has email → use email
-    if (!phoneNumber && email) {
+    // ✅ PRO PLAN: Email only – phone numbers are IGNORED
+    if (!isPremium) {
+      // Pro plan → ONLY email invites
+      if (!email) {
+        console.warn('Pro plan: Skipping customer with no email:', cust.customer_name);
+        errors.push({ customer: cust, error: 'Email required for Pro plan' });
+        continue;
+      }
       type = 'email';
-    }
-    // If no phone number and no email → skip this customer
-    else if (!phoneNumber && !email) {
-      console.warn('Skipping customer with no contact info:', cust);
-      errors.push({ customer: cust, error: 'No phone or email provided' });
-      continue;
+      phoneNumber = null; // ✅ Explicitly ignore phone number
+    } else {
+      // ✅ PREMIUM PLAN: Can use SMS or email
+      // If phone exists → SMS, else if email exists → email
+      if (cust.phone_number) {
+        type = 'sms';
+        phoneNumber = cust.phone_number;
+        email = null; // ✅ SMS only uses phone
+      } else if (email) {
+        type = 'email';
+        phoneNumber = null;
+      } else {
+        console.warn('Premium plan: Skipping customer with no contact info:', cust);
+        errors.push({ customer: cust, error: 'No phone or email provided' });
+        continue;
+      }
     }
 
-    // If type is 'sms' but no phone number → skip
+    // ─── VALIDATE ──────────────────────────────────────────────
     if (type === 'sms' && !phoneNumber) {
-      console.warn('Skipping SMS customer with no phone number:', cust);
+      console.warn('SMS customer with no phone number:', cust);
       errors.push({ customer: cust, error: 'Phone number required for SMS' });
       continue;
     }
 
-    // If type is 'email' but no email → skip
     if (type === 'email' && !email) {
-      console.warn('Skipping email customer with no email:', cust);
+      console.warn('Email customer with no email:', cust);
       errors.push({ customer: cust, error: 'Email required for email invite' });
       continue;
     }
 
+    // ─── CALCULATE SCHEDULED DATE ────────────────────────────
     const visitDate = cust.visit_date ? new Date(cust.visit_date) : new Date();
     const scheduledDate = new Date(visitDate);
     scheduledDate.setDate(scheduledDate.getDate() + delay);
@@ -3805,20 +3822,9 @@ app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
       created_at: new Date().toISOString(),
     };
 
-    // Only add phone_number if it exists
-    if (phoneNumber) {
-      insertData.phone_number = phoneNumber;
-    }
-
-    // Only add email if it exists
-    if (email) {
-      insertData.email = email;
-    }
-
-    // Add visit_date if provided
-    if (cust.visit_date) {
-      insertData.visit_date = cust.visit_date;
-    }
+    if (phoneNumber) insertData.phone_number = phoneNumber;
+    if (email) insertData.email = email;
+    if (cust.visit_date) insertData.visit_date = cust.visit_date;
 
     try {
       const { data, error } = await supabaseServiceClient
@@ -3841,7 +3847,7 @@ app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
     }
   }
 
-  // ─── AUTO-ENABLE AUTO-SEND ──────────────────────────────────────
+  // ─── AUTO-ENABLE AUTO-SEND ──────────────────────────────────
   if (inserted.length > 0) {
     await supabaseServiceClient
       .from('profiles')
