@@ -78,12 +78,14 @@ export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewIn
 // Option 1: Fetch it from an API
 const [placeId, setPlaceId] = useState<string | null>(null);
 
+// Fetch business data
 useEffect(() => {
   const fetchBusiness = async () => {
     try {
       const res = await fetch(`/api/business/${userId}`);
       if (res.ok) {
         const data = await res.json();
+        console.log('📡 Business data from API:', data);
         setPlaceId(data.place_id);
       }
     } catch (err) {
@@ -92,6 +94,43 @@ useEffect(() => {
   };
   fetchBusiness();
 }, [userId]);
+
+// Generate QR code when placeId is available AND valid
+useEffect(() => {
+  // ✅ Skip if placeId is null or the default placeholder
+  if (!placeId || placeId === 'loc_gmb_default_718') {
+    console.log('⏳ QR: Invalid placeId – skipping generation');
+    return;
+  }
+
+  // ✅ Check if we already have a cached QR code
+  const cachedQR = localStorage.getItem(`qr_${userId}`);
+  if (cachedQR) {
+    setQrCodeDataUrl(cachedQR);
+    console.log('✅ QR: Loaded from cache');
+    return;
+  }
+
+  // ✅ Only generate if not already generated
+  if (qrGeneratedRef.current) {
+    console.log('⏳ QR: Already generated – skipping');
+    return;
+  }
+
+  qrGeneratedRef.current = true;
+  const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
+  console.log('🔗 QR: Generating for URL:', url);
+
+  QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
+    if (!err) {
+      setQrCodeDataUrl(dataUrl);
+      localStorage.setItem(`qr_${userId}`, dataUrl);
+      console.log('✅ QR: Generated and cached');
+    } else {
+      console.error('❌ QR generation error:', err);
+    }
+  });
+}, [userId, placeId]);
 
 // Then generate QR
 useEffect(() => {
