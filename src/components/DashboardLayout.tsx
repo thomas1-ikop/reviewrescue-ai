@@ -59,7 +59,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* ─── LOGO ─── */}
         <div className="px-6 py-5 border-b border-slate-700/50 relative z-10">
   <button
-    onClick={() => setCurrentRoute('landing')}
+    onClick={() => window.location.href = '/'}
     className="hover:opacity-80 transition-opacity duration-200 w-full text-left"
     title="Go to Home"
   >
