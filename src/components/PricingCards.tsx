@@ -4,16 +4,34 @@
  */
 
 import React from 'react';
-import { Check, MessageSquareHeart, Sparkles, Clock } from 'lucide-react';
+import { Check, MessageSquareHeart, Sparkles, Clock, Rocket } from 'lucide-react';
 
 interface PricingCardsProps {
-  onSelectPlan: (plan: 'pro' | 'premium') => void;
-  selectedPlan?: 'pro' | 'premium' | null;
+  onSelectPlan: (plan: 'starter' | 'pro' | 'premium') => void;
+  selectedPlan?: 'starter' | 'pro' | 'premium' | null;
   currency: 'USD' | 'EUR';
 }
 
 export default function PricingCards({ onSelectPlan, selectedPlan, currency }: PricingCardsProps) {
   const plans = {
+    starter: {
+      id: 'starter' as const,
+      name: 'Basic Plan',
+      price: currency === 'USD' ? '$19' : '€19',
+      interval: 'month',
+      icon: <Rocket className="h-6 w-6 text-emerald-500" />,
+      description: 'The simplest way to start collecting reviews. No commitment.',
+      features: [
+        'Unlimited AI Replies to any review',
+        'Review Dashboard with live management',
+        'Email Review Invites',
+        'Manual Review Import',
+        '24/7 Email Support',
+      ],
+      ctaText: 'Start Basic Plan',
+      highlighted: false,
+      comingSoon: false,
+    },
     pro: {
       id: 'pro' as const,
       name: 'Pro Plan',
@@ -31,7 +49,7 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
         '24/7 Email Support',
       ],
       ctaText: 'Start Pro Plan',
-      highlighted: true, // 👈 NOW THE MAIN CARD
+      highlighted: true,
       comingSoon: false,
     },
     premium: {
@@ -39,7 +57,7 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
       name: 'Premium Plan',
       price: currency === 'USD' ? '$89' : '€89',
       interval: 'month',
-      icon: <Sparkles className="h-6 w-6 text-slate-400" />, // less flashy
+      icon: <Sparkles className="h-6 w-6 text-slate-400" />,
       description: 'Advanced features for businesses serious about reputation.',
       features: [
         'Everything in Pro Plan',
@@ -52,13 +70,13 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
         'Custom Branding (remove Rewakely)',
       ],
       ctaText: 'Join Waitlist',
-      highlighted: false, // 👈 NOW SECONDARY
+      highlighted: false,
       comingSoon: true,
     },
   };
 
   return (
-    <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+    <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
       {Object.values(plans).map((plan) => {
         const isSelected = selectedPlan === plan.id;
 
@@ -67,15 +85,15 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
             key={plan.id}
             className={`relative flex flex-col rounded-2xl bg-white p-8 border transition-all duration-300 ${
               plan.highlighted
-                ? 'border-blue-500 shadow-xl ring-4 ring-blue-500/10 hover:shadow-2xl' // Pro gets the ring
-                : 'border-slate-200 shadow-sm hover:shadow-md' // Premium is subtle
+                ? 'border-blue-500 shadow-xl ring-4 ring-blue-500/10 hover:shadow-2xl'
+                : 'border-slate-200 shadow-sm hover:shadow-md'
             }`}
             onClick={() => {
               if (!plan.comingSoon) onSelectPlan(plan.id);
             }}
             id={`pricing-card-${plan.id}`}
           >
-            {/* ─── BADGE – only for Pro now ───────────────────────────── */}
+            {/* ─── BADGE – only for Pro ───────────────────────────── */}
             {plan.highlighted && (
               <span className="absolute -top-3 right-8 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-bold text-white uppercase tracking-wider shadow-sm">
                 Best Value
@@ -85,6 +103,7 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
             {/* ─── HEADER ─────────────────────────────────────────────── */}
             <div className="flex items-center gap-3">
               <div className={`rounded-xl p-2 ${
+                plan.id === 'starter' ? 'bg-emerald-50' :
                 plan.highlighted ? 'bg-blue-50' : 'bg-slate-50'
               }`}>
                 {plan.icon}
@@ -146,8 +165,10 @@ export default function PricingCards({ onSelectPlan, selectedPlan, currency }: P
               }}
               className={`mt-8 w-full rounded-xl py-3 px-4 text-center text-sm font-bold transition-all duration-150 cursor-pointer ${
                 plan.highlighted
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg' // bold button for Pro
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200' // subtle button for Premium
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                  : plan.id === 'starter'
+? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
               }`}
               id={`choose-plan-btn-${plan.id}`}
             >

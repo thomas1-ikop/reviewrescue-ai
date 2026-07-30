@@ -54,6 +54,84 @@ const authenticate = async (req: Request, res: Response, next: NextFunction) => 
   next();
 };
 
+
+const PLAN_ORDER = ['basic', 'pro', 'premium'];
+
+function getUserPlan(plan: string): string {
+  return plan || 'basic';
+}
+
+function isAtLeastPlan(userPlan: string, requiredPlan: string): boolean {
+  return PLAN_ORDER.indexOf(userPlan) >= PLAN_ORDER.indexOf(requiredPlan);
+}
+
+// ─── MIDDLEWARE: Check if user is at least Pro ────────────────
+async function requirePro(req: Request, res: Response, next: NextFunction) {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('subscription_plan')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const plan = profile.subscription_plan || 'basic';
+    if (!isAtLeastPlan(plan, 'pro')) {
+      return res.status(403).json({
+        error: 'upgrade_required',
+        message: 'Upgrade to Pro to use this feature'
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// ─── MIDDLEWARE: Check if user is Premium ──────────────────────
+async function requirePremium(req: Request, res: Response, next: NextFunction) {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    const { data: profile, error } = await supabaseServiceClient
+      .from('profiles')
+      .select('subscription_plan')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const plan = profile.subscription_plan || 'basic';
+    if (!isAtLeastPlan(plan, 'premium')) {
+      return res.status(403).json({
+        error: 'upgrade_required',
+        message: 'Upgrade to Premium to use this feature'
+      });
+    }
+
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+
+
+
+
 // Load environment variables
 dotenv.config();
 
@@ -120,16 +198,19 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
       console.log(`🔴 User ${userId} found – updating to active...`);
 
-      const { data: updatedProfile, error: updateError } = await supabaseServiceClient
-        .from('profiles')
-        .update({
-          subscription_status: 'active',
-          subscription_plan: 'pro',
-          stripe_customer_id: session.customer,
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+      // ─── GET PLAN FROM METADATA ──────────────────────────────────────
+const planFromMetadata = session.metadata?.plan || 'pro';
+
+const { data: updatedProfile, error: updateError } = await supabaseServiceClient
+  .from('profiles')
+  .update({
+    subscription_status: 'active',
+    subscription_plan: planFromMetadata,
+    stripe_customer_id: session.customer,
+  })
+  .eq('id', userId)
+  .select()
+  .single();
 
       if (updateError) {
         console.error('❌ Update error:', updateError);
@@ -156,7 +237,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
               .from('profiles')
               .update({
                 subscription_status: 'inactive',
-                subscription_plan: 'starter',
+                subscription_plan: 'basic',
               })
               .eq('id', prof.id);
             console.log(`✅ Subscription cancelled for user ${prof.id}`);
@@ -1582,8 +1663,8 @@ app.get('/api/sms/invites', async (req, res) => {
 
 
 
-app.post('/api/sms/send-invite', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.post('/api/sms/send-invite', authenticate, requirePremium, async (req, res) => {
+  const userId = req.userId;
   const { customerName, phoneNumber } = req.body;
 
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
@@ -2026,10 +2107,8 @@ setInterval(async () => {
 
 
 
-
-
 app.post('/api/stripe/create-checkout', async (req, res) => {
-  const { plan = 'pro', userId, email } = req.body;
+  const { plan = 'basic', userId, email } = req.body;
 
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2043,7 +2122,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
         await supabaseServiceClient
           .from('profiles')
           .update({
-            subscription_plan: 'pro',
+            subscription_plan: plan,
             subscription_status: 'active'
           })
           .eq('id', userId);
@@ -2052,7 +2131,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       console.warn('Could not update profile for simulated payment:', dbErr);
     }
 
-    const simulationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/#currentRoute=dashboard&success=true&plan=pro&simulated=true`;
+    const simulationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/#currentRoute=dashboard&success=true&plan=${plan}&simulated=true`;
     return res.json({ url: simulationUrl, simulated: true });
   }
 
@@ -2060,21 +2139,39 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
     const acceptLang = req.headers['accept-language'] || '';
     const useEUR = acceptLang.toLowerCase().includes('de') || acceptLang.toLowerCase().includes('fr') || acceptLang.toLowerCase().includes('es') || acceptLang.toLowerCase().includes('it');
 
-    let priceId = useEUR ? (process.env.STRIPE_PRICE_PRO_EUR || '') : (process.env.STRIPE_PRICE_PRO_USD || '');
+    // ─── SELECT PRICE ID BASED ON PLAN ──────────────────────────────
+    let priceId = '';
+    
+    if (plan === 'basic') {
+      priceId = useEUR 
+        ? (process.env.STRIPE_PRICE_BASIC_EUR || '') 
+        : (process.env.STRIPE_PRICE_BASIC_USD || '');
+    } else if (plan === 'pro') {
+      priceId = useEUR 
+        ? (process.env.STRIPE_PRICE_PRO_EUR || '') 
+        : (process.env.STRIPE_PRICE_PRO_USD || '');
+    } else if (plan === 'premium') {
+      priceId = useEUR 
+        ? (process.env.STRIPE_PRICE_PREMIUM_EUR || '') 
+        : (process.env.STRIPE_PRICE_PREMIUM_USD || '');
+    }
 
+    // ─── FALLBACK ──────────────────────────────────────────────────────
     if (!priceId) {
-      priceId = 'price_1Thz7iLEBGVGOt3QRL0rPtIu';
+      priceId = useEUR 
+        ? 'price_1TlokBPqSbJRJk7iGioAPp1S'  // Pro EUR fallback
+        : 'price_1TlokBPqSbJRJk7ikydk1Nkf'; // Pro USD fallback
     }
 
     const session = await stripeClient.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/#currentRoute=dashboard&success=true&plan=pro`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/#currentRoute=dashboard&success=true&plan=${plan}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/#currentRoute=dashboard&canceled=true`,
       client_reference_id: userId,
       customer_email: email,
-      metadata: { userId, plan: 'pro' },
+      metadata: { userId, plan },
     });
 
     res.json({ url: session.url, simulated: false });
@@ -2083,6 +2180,8 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
     res.status(500).json({ error: 'stripe_error', message: err.message });
   }
 });
+
+
 
 
 
@@ -2422,8 +2521,11 @@ app.get('/api/autopilot/stats', async (req, res) => {
   });
 });
 
-app.post('/api/autopilot/sync', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.body.userId;
+
+
+// ─── AUTOPILOT SYNC ──────────────────────────────────────────────
+app.post('/api/autopilot/sync', authenticate, requirePro, async (req, res) => {
+  const userId = req.userId; // ✅ Already set by authenticate middleware
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
   }
@@ -2449,9 +2551,11 @@ app.post('/api/autopilot/sync', async (req, res) => {
     res.json({ success: true, lastGoogleSync });
   } catch (err: any) {
     console.error(`Manual autopilot sync failed for user ${userId}:`, err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message || 'Failure during sync' });
   }
 });
+
+
 
 
 // server.ts – replace the existing /api/feedback/submit route
@@ -2651,7 +2755,7 @@ app.get('/api/business/:id', async (req, res) => {
 // SAVE AUTO-SEND TOGGLE STATE
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.post('/api/sms/auto-send/toggle', authenticate, async (req, res) => {
+app.post('/api/sms/auto-send/toggle', authenticate, requirePremium, async (req, res) => {
   const userId = req.userId;
   const { enabled, sendDelay } = req.body;
 
@@ -3293,8 +3397,8 @@ async function syncAllAutopilotGMB() {
 
 
 // -------------------- AUTOPILOT TOGGLE --------------------
-app.post('/api/user/autopilot-toggle', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.body.userId;
+app.post('/api/user/autopilot-toggle', authenticate, requirePro, async (req, res) => {
+  const userId = req.userId;
   const { enabled } = req.body;
 
   if (!userId) {
@@ -3495,18 +3599,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 });
 
-app.post('/api/autopilot/sync', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.body.userId;
-  if (!userId) return res.status(400).json({ error: 'userId is required' });
 
-  try {
-    await syncGoogleReviewsForUser(userId);
-    res.json({ success: true, message: 'Google Business Profile reviews synchronized and processed.' });
-  } catch (err: any) {
-    console.error('Autopilot manual sync exception:', err);
-    res.status(500).json({ error: err.message || 'Failure during sync' });
-  }
-});
 
 app.get('/api/autopilot/logs', async (req, res) => {
   const userId = req.headers['x-user-id'] as string || req.query.userId as string;
@@ -3909,7 +4002,7 @@ async function startServer() {
 // ──────────────────────────────────────────────────────────────
 
 // 1. POST – Schedule new customers
-app.post('/api/sms/schedule-customers', authenticate, async (req, res) => {
+app.post('/api/sms/schedule-customers', authenticate, requirePremium, async (req, res) => {
   const userId = req.userId;
   const { customers } = req.body;
 

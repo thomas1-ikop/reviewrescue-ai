@@ -5,7 +5,7 @@ import Logo from './Logo';
 import { 
   LayoutDashboard, MessageSquare, Smartphone, ShieldCheck, 
   ThumbsUp, HelpCircle, Settings, LogOut, Zap, 
-  Sparkles, CheckCircle, AlertTriangle
+  Sparkles, CheckCircle, AlertTriangle, CreditCard
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -35,6 +35,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'autopilot', label: 'Auto-Reply', icon: <ShieldCheck size={18} /> },
     { id: 'feedback', label: 'Customer Feedback', icon: <ThumbsUp size={18} /> },
     { id: 'support', label: 'Help & Support', icon: <HelpCircle size={18} /> },
+    { id: 'billing', label: 'Billing', icon: <CreditCard size={18} /> }, // ✅ NEW
     { id: 'dashboardSettings', label: 'Settings', icon: <Settings size={18} /> },
     { 
     id: 'demo', 

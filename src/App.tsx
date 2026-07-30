@@ -13,6 +13,8 @@
   clearUserSession
 } from './lib/authStorage';
 
+import BillingView from './components/BillingView';
+
 
   import React, { useState, useEffect } from 'react'; 
   import { motion, AnimatePresence } from 'motion/react';
@@ -628,7 +630,7 @@
 
 
     // Create Stripe Checkout
-    const handleStripeCheckout = async (plan: 'pro' = 'pro') => {
+    const handleStripeCheckout = async (plan: 'basic' | 'pro' | 'premium' = 'pro') => {
       if (!user) {
         setCurrentRoute('signup');
         return;
@@ -653,6 +655,34 @@
         triggerToast('Unable to connect to Stripe server, activating in-memory override.');
       }
     };
+
+
+
+const handleCancelSubscription = async () => {
+  if (!user) {
+    triggerToast('No active subscription to cancel.', 'warn');
+    return;
+  }
+  triggerToast('Redirecting to Stripe Customer Portal...', 'info');
+  try {
+    const res = await fetch('/api/stripe/portal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
+      body: JSON.stringify({ userId: user.id })
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      triggerToast(data.error || 'Unable to redirect to Stripe customer portal.', 'warn');
+    }
+  } catch (err) {
+    console.error('Cancel subscription error:', err);
+    triggerToast('Something went wrong. Please try again.', 'warn');
+  }
+};
+
+
 
     // Trigger Simulative Google reviews pulling (Pro feature)
     const handleSimulateGooglePull = async () => {
@@ -1820,18 +1850,26 @@
           {currentRoute === 'support' && (
             <SupportView profile={user} />
           )}
+
           
           {/* 6. Settings – ALWAYS visible even if not subscribed */}
           {currentRoute === 'dashboardSettings' && (
             <SettingsView 
-              profile={user} 
-              onUpdateProfile={handleSettingsUpdate} 
-              onUpgradePlan={handleStripeCheckout} 
-              statusLogs={containerHealth}
-              isLoadingStatus={isLoadingHealth}
-              triggerToast={triggerToast}
-            />
+  profile={user} 
+  onUpdateProfile={handleSettingsUpdate} 
+  triggerToast={triggerToast}
+/>
           )}
+
+          {/* 7. Billing */}
+{currentRoute === 'billing' && (
+  <BillingView 
+    profile={user} 
+    onUpgradePlan={handleStripeCheckout}
+    onCancelSubscription={handleCancelSubscription}
+    triggerToast={triggerToast}
+  />
+)}
         </>
       )}
     </DashboardLayout>

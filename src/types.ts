@@ -10,7 +10,7 @@ export interface Profile {
   industry: string;
   tone: string;
   subscription_status: 'active' | 'inactive';
-  subscription_plan: 'pro' | 'premium';
+  subscription_plan: 'basic' | 'pro' | 'premium'; // ✅ ADDED 'basic'
   onboarded: boolean;
   stripe_customer_id?: string | null;
   autopilot_enabled?: boolean;
@@ -21,6 +21,7 @@ export interface Profile {
   created_at?: string;
   subscription_expires_at?: string | null;
   place_id?: string | null;
+  zapier_api_key?: string | null; // ✅ ADDED (for Zapier integration)
 }
 
 export type ReviewSource = 'google' | 'yelp' | 'facebook' | 'manual';
