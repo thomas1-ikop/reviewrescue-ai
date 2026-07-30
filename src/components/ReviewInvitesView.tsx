@@ -351,7 +351,7 @@ useEffect(() => {
     <div className="flex items-center gap-4 mt-3">
       <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
       <span className="text-[10px] text-slate-400 break-all">
-        Checkout the link: https://search.google.com/local/writereview?placeid={placeId};
+        Checkout the link: https://search.google.com/local/writereview?placeid={placeId}
       </span>
     </div>
   ) : (

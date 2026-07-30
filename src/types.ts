@@ -39,6 +39,7 @@ export interface Review {
   auto_synced: boolean;
   created_at: string;
   replied_at?: string | null;
+  verified?: boolean;
 }
 
 export interface Invite {

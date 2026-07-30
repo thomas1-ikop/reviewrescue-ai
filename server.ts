@@ -61,6 +61,8 @@ const app = express();
 const PORT = 3000;
 
 
+app.set('trust proxy', 1);
+
 
 
 // ─── STRIPE WEBHOOK (RAW BODY REQUIRED) ───
@@ -2928,6 +2930,93 @@ async function refreshGoogleAccessToken(userId: string, tokensModel: any) {
   }
 }
 
+// ─── FALLBACK REPLY ──────────────────────────────────────────────────
+function getFallbackReply(rating: number, businessName: string): string {
+  if (rating >= 4) {
+    return `Thank you for your kind words! We truly appreciate your support at ${businessName || 'our business'}. Hope to see you again soon!`;
+  } else {
+    return `We're sorry your experience wasn't perfect. Please contact us directly so we can make things right. Thank you for your honest feedback.`;
+  }
+}
+
+// ─── AUTO-REPLY WITH RETRY ──────────────────────────────────────────
+async function generateAutoReplyWithRetry(
+  rating: number,
+  comment: string,
+  businessName: string,
+  industry: string,
+  tone: string,
+  maxRetries: number = 5
+): Promise<string> {
+  let attempt = 0;
+  let lastError: any = null;
+  const delays = [60000, 180000, 480000, 1200000, 2400000]; // 1min, 3min, 8min, 20min, 40min
+
+  while (attempt < maxRetries) {
+    try {
+      const client = getGeminiClient();
+      if (!client) {
+        console.warn('⚠️ Gemini client unavailable – using fallback');
+        return getFallbackReply(rating, businessName);
+      }
+
+      // Build prompt
+      let prompt = '';
+      if (rating >= 4) {
+        prompt = `You are a customer service representative for ${businessName || 'our business'}, a ${industry || 'local'} business. 
+Write a friendly, professional, warm, concise reply to a positive review of ${rating} stars. Keep it to 1-2 sentences. 
+Do not use placeholders.
+Reply in the same language as the review.
+Review text is: "${comment}"
+Tone should be: ${tone || 'Friendly'}`;
+      } else {
+        prompt = `You are a customer service representative for ${businessName || 'our business'}, a ${industry || 'local'} business. 
+Write a highly professional, empathetic response to a negative/neutral review of ${rating} stars. 
+Acknowledge the customer's comment, apologize sincerely without making excuses, and offer them to resolve this issue by contacting management offline. Keep it to 1-2 sentences.
+Do not use placeholders.
+Reply in the same language as the review.
+Review text is: "${comment}"
+Tone should be: ${tone || 'Professional & Direct'}`;
+      }
+
+      const response = await client.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+        config: { temperature: 0.7 },
+      });
+
+      const reply = response.text?.trim();
+      if (reply) {
+        console.log(`✅ Auto-reply generated (attempt ${attempt + 1})`);
+        return reply;
+      }
+
+    } catch (err: any) {
+      lastError = err;
+      const is503 = err.status === 503 || err.message?.includes('high demand');
+      const is429 = err.status === 429; // Rate limit
+
+      // Only retry on retryable errors
+      if ((is503 || is429) && attempt < maxRetries - 1) {
+        const waitTime = delays[attempt] || 60000;
+        console.log(`⏳ Auto-reply: Gemini ${is503 ? 'overloaded' : 'rate limited'} (attempt ${attempt + 1}/${maxRetries}), retrying in ${waitTime / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        attempt++;
+        continue;
+      }
+
+      // If not retryable, break
+      break;
+    }
+
+    attempt++;
+  }
+
+  // ─── ALL ATTEMPTS FAILED – USE FALLBACK ──────────────────────────
+  console.error(`❌ Auto-reply: All ${maxRetries} attempts failed. Using fallback.`, lastError?.message);
+  return getFallbackReply(rating, businessName);
+}
+
 async function syncGoogleReviewsForUser(userId: string) {
   if (!supabaseServiceClient) {
     console.warn('[Sync Worker] Supabase Service level client offline.');
@@ -3063,33 +3152,17 @@ try {
 };
 
       if (item.rating >= 4) {
-        const gemini = getGeminiClient();
-        let replyText = '';
+  // ─── GENERATE AUTO-REPLY WITH RETRY ──────────────────────────────
+  const replyText = await generateAutoReplyWithRetry(
+    item.rating,
+    item.comment || '',
+    profile.business_name || '',
+    profile.industry || '',
+    profile.tone || '',
+    5 // Max 5 retries
+  );
 
-        if (gemini) {
-          try {
-            const prompt = `You are a customer service AI avatar for ${profile.business_name}, a ${profile.industry || 'local'} business. 
-Write a short, warm, delighted 1-2 sentence auto-pilot response to a ${item.rating}-star review left by ${item.customer_name}. 
-Do not use placeholders. Write the final response immediately.
-Reply in the same language as the customer's review comment.
-Review comment: "${item.comment}"
-Aesthetic Tone: ${profile.tone}`;
-
-            const response = await gemini.models.generateContent({
-              model: 'gemini-3.5-flash',
-              contents: prompt,
-            });
-            replyText = response.text?.trim() || '';
-          } catch (gErr) {
-            console.error('Gemini content generation failed in background:', gErr);
-          }
-        }
-
-        if (!replyText) {
-          replyText = `Thank you so much, ${item.customer_name}! The team at ${profile.business_name || 'our business'} are delighted by your feedback!`;
-        }
-
-        (reviewRecord as any).reply_text = replyText;
+  (reviewRecord as any).reply_text = replyText;
 
         let postStatus = 'success';
         try {
