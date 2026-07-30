@@ -21,7 +21,7 @@ import BillingView from './components/BillingView';
   import { 
     Menu, X, Smartphone, Settings, Shield, Activity, LogOut, ArrowRight, ArrowLeft, Lock, 
     CheckCircle2, Zap, Check, ExternalLink, HelpCircle, ShieldCheck, HeartCrack, 
-    MessageSquare, Star, Sparkles, LogIn, UserPlus, Info, RefreshCw, ThumbsUp, ThumbsDown, XCircle, CheckCircle, MapPin, Eye, EyeOff
+    MessageSquare, Star, Sparkles, LogIn, UserPlus, Info, RefreshCw, ThumbsUp, ThumbsDown, XCircle, CheckCircle, MapPin, Eye, EyeOff, Rocket, MessageSquareHeart
   } from 'lucide-react';
 
   import Logo from './components/Logo';
@@ -1752,126 +1752,175 @@ const handleCancelSubscription = async () => {
       negativeAlerts={negativeAlerts}
       onDismissAlerts={() => setNegativeAlerts([])}
     >
-      {/* ✅ PAYWALL CHECK – If user is NOT subscribed, show paywall */}
-      {user.subscription_status !== 'active' ? (
-        <div className="max-w-2xl mx-auto text-center py-12">
-          <div className="bg-white rounded-3xl border border-slate-200 p-8 md:p-12 shadow-xl space-y-6">
-            <div className="rounded-full bg-blue-50 p-4 w-max mx-auto border border-blue-100 text-blue-600">
-              <Lock size={32} />
-            </div>
-            
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-slate-900">Activate Your Pro Plan</h2>
-              <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-                Your account is currently on a free trial. Upgrade to Pro to unlock unlimited AI replies, SMS invites, and auto-reply.
-              </p>
-            </div>
+      {/* ✅ PAYWALL CHECK – If user is NOT subscribed, show plan selector */}
+{user.subscription_status !== 'active' ? (
+  <div className="max-w-4xl mx-auto py-12 px-4">
+    <div className="text-center mb-10">
+      <div className="rounded-full bg-blue-50 p-4 w-max mx-auto border border-blue-100 text-blue-600 mb-4">
+        <Lock size={32} />
+      </div>
+      <h2 className="text-2xl font-bold text-slate-900">Choose Your Plan</h2>
+      <p className="text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+        Start managing your reviews today. Upgrade anytime.
+      </p>
+    </div>
 
-            <div className="border-t border-slate-100 pt-6 mt-6">
-              <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 max-w-sm mx-auto">
-                <div className="flex items-center justify-between font-sans">
-                  <span className="text-xs font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-lg">Pro Access</span>
-                  <span className="text-lg font-black text-slate-900">$49<span className="text-xs font-normal text-slate-500">/mo</span></span>
-                </div>
-                
-                <div className="space-y-2.5 text-left text-xs font-sans text-slate-600 border-t border-slate-200/60 pt-4">
-                  <p className="flex items-start gap-2.5">
-                    <span className="text-emerald-500">✔</span> Unlimited AI Replies
-                  </p>
-                  <p className="flex items-start gap-2.5">
-                    <span className="text-emerald-500">✔</span> SMS Review Invites
-                  </p>
-                  <p className="flex items-start gap-2.5">
-                    <span className="text-emerald-500">✔</span> Google Auto-Reply
-                  </p>
-                  <p className="flex items-start gap-2.5">
-                    <span className="text-emerald-500">✔</span> Real-time Alerts
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => handleStripeCheckout('pro')}
-                  className="w-full mt-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs py-3.5 transition shadow-lg"
-                >
-                  Activate Pro License Now
-                </button>
-              </div>
-            </div>
+    <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+      {/* ─── BASIC PLAN ────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl p-2 bg-emerald-50">
+            <Rocket className="h-6 w-6 text-emerald-500" />
           </div>
+          <h3 className="text-xl font-bold text-slate-900">Basic</h3>
         </div>
-      ) : (
-        // ✅ SUBSCRIBED USER – Show all features
-        <>
-          {/* 1. Review Center */}
-          {currentRoute === 'dashboard' && (
-            <ReviewsView 
-              profile={user} 
-              reviews={reviews} 
-              onImportReview={handleImportReview} 
-              onGenerateReply={handleGenerateReplyResponse} 
-              onPostReply={handlePublishReply} 
-              isLoadingReviews={isLoadingReviews}
-              repliedCountThisMonth={repliedCountThisMonth}
-              onDeleteReview={handleDeleteReview}
-              onClearAllReviews={handleClearAllReviews}
-            />
-          )}
+        <p className="mt-2 text-xs text-slate-500 leading-relaxed min-h-[40px]">
+          Perfect for getting started with review management.
+        </p>
+        <div className="mt-4 flex items-baseline justify-center text-slate-900">
+          <span className="text-4xl font-extrabold tracking-tight">$19</span>
+          <span className="ml-1 text-sm font-semibold text-slate-500">/mo</span>
+        </div>
+        <ul className="mt-4 space-y-2 text-xs font-sans">
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Unlimited AI Replies</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Review Dashboard</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Email Review Invites</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <span className="text-slate-400">—</span>
+            <span className="text-slate-400">No Auto-Reply</span>
+          </li>
+        </ul>
+        <button
+          onClick={() => handleStripeCheckout('basic')}
+          className="mt-6 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm py-3 transition shadow-sm"
+        >
+          Start Basic
+        </button>
+      </div>
 
+      {/* ─── PRO PLAN ──────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border-2 border-blue-500 p-8 shadow-lg hover:shadow-xl transition relative">
+        <span className="absolute -top-3 right-8 rounded-full bg-blue-600 px-3.5 py-1 text-xs font-bold text-white uppercase tracking-wider shadow-sm">
+          Best Value
+        </span>
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl p-2 bg-blue-50">
+            <MessageSquareHeart className="h-6 w-6 text-blue-600" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900">Pro</h3>
+        </div>
+        <p className="mt-2 text-xs text-slate-500 leading-relaxed min-h-[40px]">
+          Everything you need to automate your review management.
+        </p>
+        <div className="mt-4 flex items-baseline justify-center text-slate-900">
+          <span className="text-4xl font-extrabold tracking-tight">$49</span>
+          <span className="ml-1 text-sm font-semibold text-slate-500">/mo</span>
+        </div>
+        <ul className="mt-4 space-y-2 text-xs font-sans">
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Everything in Basic</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Google Auto-Reply</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">QR Code Generation</span>
+          </li>
+          <li className="flex items-start gap-2.5">
+            <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
+            <span className="text-slate-700">Zapier Integration</span>
+          </li>
+        </ul>
+        <button
+          onClick={() => handleStripeCheckout('pro')}
+          className="mt-6 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-3 transition shadow-sm"
+        >
+          Start Pro
+        </button>
+      </div>
+    </div>
+  </div>
+) : (
+  // ✅ SUBSCRIBED USER – Show all features
+  <>
+    {/* 1. Review Center */}
+    {currentRoute === 'dashboard' && (
+      <ReviewsView 
+        profile={user} 
+        reviews={reviews} 
+        onImportReview={handleImportReview} 
+        onGenerateReply={handleGenerateReplyResponse} 
+        onPostReply={handlePublishReply} 
+        isLoadingReviews={isLoadingReviews}
+        repliedCountThisMonth={repliedCountThisMonth}
+        onDeleteReview={handleDeleteReview}
+        onClearAllReviews={handleClearAllReviews}
+      />
+    )}
 
-        
-          
-          {/* 2. Review Invites Tab */}
-  {currentRoute === 'invites' && (
-    <ReviewInvitesView 
-      userId={user?.id}
-      isPremium={user?.subscription_plan === 'premium'}
-      toast={triggerToast}
-    />
-  )}
-          
-          {/* 3. Auto-Reply */}
-          {currentRoute === 'autopilot' && (
-            <AutopilotPanel 
-              profile={user} 
-              onProfileUpdated={(updated) => {
-                setUser(updated);
-                localStorage.setItem('reviewrescue_user', JSON.stringify(updated));
-              }}
-              toast={triggerToast} 
-            />
-          )}
-          
-          {/* 4. Customer Feedback */}
-          {currentRoute === 'feedback' && (
-            <FeedbackView profile={user} />
-          )}
-          
-          {/* 5. Support */}
-          {currentRoute === 'support' && (
-            <SupportView profile={user} />
-          )}
+    {/* 2. Review Invites Tab */}
+    {currentRoute === 'invites' && (
+      <ReviewInvitesView 
+        userId={user?.id}
+        isPremium={user?.subscription_plan === 'premium'}
+        toast={triggerToast}
+      />
+    )}
+    
+    {/* 3. Auto-Reply */}
+    {currentRoute === 'autopilot' && (
+      <AutopilotPanel 
+        profile={user} 
+        onProfileUpdated={(updated) => {
+          setUser(updated);
+          localStorage.setItem('reviewrescue_user', JSON.stringify(updated));
+        }}
+        toast={triggerToast} 
+      />
+    )}
+    
+    {/* 4. Customer Feedback */}
+    {currentRoute === 'feedback' && (
+      <FeedbackView profile={user} />
+    )}
+    
+    {/* 5. Support */}
+    {currentRoute === 'support' && (
+      <SupportView profile={user} />
+    )}
 
-          
-          {/* 6. Settings – ALWAYS visible even if not subscribed */}
-          {currentRoute === 'dashboardSettings' && (
-            <SettingsView 
-  profile={user} 
-  onUpdateProfile={handleSettingsUpdate} 
-  triggerToast={triggerToast}
-/>
-          )}
+    {/* 6. Settings */}
+    {currentRoute === 'dashboardSettings' && (
+      <SettingsView 
+        profile={user} 
+        onUpdateProfile={handleSettingsUpdate} 
+        triggerToast={triggerToast}
+      />
+    )}
 
-          {/* 7. Billing */}
-{currentRoute === 'billing' && (
-  <BillingView 
-    profile={user} 
-    onUpgradePlan={handleStripeCheckout}
-    onCancelSubscription={handleCancelSubscription}
-    triggerToast={triggerToast}
-  />
+    {/* 7. Billing */}
+    {currentRoute === 'billing' && (
+      <BillingView 
+        profile={user} 
+        onUpgradePlan={handleStripeCheckout}
+        onCancelSubscription={handleCancelSubscription}
+        triggerToast={triggerToast}
+      />
+    )}
+  </>
 )}
-        </>
-      )}
     </DashboardLayout>
   )}
 
