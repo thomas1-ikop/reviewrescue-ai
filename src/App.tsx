@@ -215,6 +215,17 @@ import BillingView from './components/BillingView';
     return () => window.removeEventListener('upgradeToPremium', handler);
   }, []);
 
+  // In App.tsx, add this useEffect (one time, anywhere)
+useEffect(() => {
+  const handler = (event: any) => {
+    if (event.detail?.route) {
+      setCurrentRoute(event.detail.route);
+    }
+  };
+  window.addEventListener('navigateTo', handler);
+  return () => window.removeEventListener('navigateTo', handler);
+}, []);
+
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
   // ===== PUBLIC ROUTES =====
@@ -324,22 +335,22 @@ import BillingView from './components/BillingView';
 
     // Onboarding Tour trigger & handler
     useEffect(() => {
-      if (
-        user && 
-        user.onboarded && 
-        user.subscription_status === 'active' && 
-        !showOnboarding && 
-        currentRoute !== 'landing' && 
-        currentRoute !== 'signup' && 
-        currentRoute !== 'signin'
-      ) {
-        if (!user.tour_completed) {
-          setShowTour(true);
-        }
-      } else {
-        setShowTour(false);
-      }
-    }, [user, showOnboarding, currentRoute]);
+  // Only show tour once, if user exists and hasn't completed it
+  if (
+    user && 
+    user.onboarded && 
+    !showOnboarding && 
+    currentRoute !== 'landing' && 
+    currentRoute !== 'signup' && 
+    currentRoute !== 'signin'
+  ) {
+    if (!user.tour_completed) {
+      setShowTour(true);
+    }
+  } else {
+    setShowTour(false);
+  }
+}, [user, showOnboarding, currentRoute]);
 
     const handleTourComplete = async () => {
       setShowTour(false);
@@ -1840,7 +1851,7 @@ const handleCancelSubscription = async () => {
           </li>
           <li className="flex items-start gap-2.5">
             <Check className="h-4 w-4 text-emerald-600 mt-0.5" />
-            <span className="text-slate-700">Zapier Integration</span>
+            <span className="text-slate-700">Feedback Collection</span>
           </li>
         </ul>
         <button
@@ -1872,12 +1883,13 @@ const handleCancelSubscription = async () => {
 
     {/* 2. Review Invites Tab */}
     {currentRoute === 'invites' && (
-      <ReviewInvitesView 
-        userId={user?.id}
-        isPremium={user?.subscription_plan === 'premium'}
-        toast={triggerToast}
-      />
-    )}
+  <ReviewInvitesView 
+    userId={user?.id}
+    isPremium={user?.subscription_plan === 'premium'}
+    subscriptionPlan={user?.subscription_plan || null} // ✅ ADD THIS
+    toast={triggerToast}
+  />
+)}
     
     {/* 3. Auto-Reply */}
     {currentRoute === 'autopilot' && (

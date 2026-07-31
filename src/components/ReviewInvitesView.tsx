@@ -7,14 +7,16 @@ import {
 import QRCode from 'qrcode';
 import ReviewInvitesTour from './ReviewInvitesTour';
 import ConfirmModal from './ConfirmModal'; // 👈 Import the existing modal
+import QRCodeLock from './QRCodeLock';
 
 interface ReviewInvitesViewProps {
   userId: string;
   isPremium: boolean;
+  subscriptionPlan: 'basic' | 'pro' | 'premium' | null; // ✅ ADD THIS
   toast: (message: string, type: 'success' | 'error' | 'warn' | 'info') => void;
 }
 
-export default function ReviewInvitesView({ userId, isPremium, toast }: ReviewInvitesViewProps) {
+export default function ReviewInvitesView({ userId, isPremium, subscriptionPlan, toast }: ReviewInvitesViewProps) {
   // ── State for Email ──
   const [emailName, setEmailName] = useState('');
   const [emailAddress, setEmailAddress] = useState('');
@@ -329,37 +331,48 @@ useEffect(() => {
 
       {/* ─── QR CODE SECTION ───────────────────────────────────────────── */}
       {/* ─── QR CODE SECTION ───────────────────────────────────────────── */}
-<div id="qr-code-section" className="mb-6 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-  <div className="flex items-center justify-between">
-    <div>
-      <h3 className="font-semibold text-slate-800">📱 QR Code</h3>
-      <p className="text-xs text-slate-500">
-        Dont have a customer list? Print and display for instant customer feedback!
-      </p>
+
+<QRCodeLock
+  currentPlan={subscriptionPlan}
+  requiredPlan="pro"
+  message="QR codes are a Pro feature. Upgrade to start generating QR codes."
+>
+  <div id="qr-code-section" className="mb-8 p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="font-semibold text-slate-800">📱 QR Code</h3>
+        <p className="text-xs text-slate-500">
+          Dont have a customer list? Print and display for instant customer feedback!
+        </p>
+      </div>
+      {qrCodeDataUrl && (
+        <button
+          onClick={handleDownloadQR}
+          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+        >
+          <Download className="w-4 h-4" />
+          Download
+        </button>
+      )}
     </div>
-    {qrCodeDataUrl && (
-      <button
-        onClick={handleDownloadQR}
-        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
-      >
-        <Download className="w-4 h-4" />
-        Download
-      </button>
+    {qrCodeDataUrl ? (
+      <div className="flex items-center gap-4 mt-3">
+        <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
+        <span className="text-[10px] text-slate-400 break-all">
+          Checkout the link: https://search.google.com/local/writereview?placeid={placeId}
+        </span>
+      </div>
+    ) : (
+      <div className="text-sm text-slate-400 flex items-center gap-2">
+        <span className="animate-pulse">⏳</span> Generating QR code...     Not working? Try signing out.
+      </div>
     )}
+    
   </div>
-  {qrCodeDataUrl ? (
-    <div className="flex items-center gap-4 mt-3">
-      <img src={qrCodeDataUrl} alt="QR Code" className="w-20 h-20" />
-      <span className="text-[10px] text-slate-400 break-all">
-        Checkout the link: https://search.google.com/local/writereview?placeid={placeId}
-      </span>
-    </div>
-  ) : (
-    <div className="text-sm text-slate-400 flex items-center gap-2">
-      <span className="animate-pulse">⏳</span> Generating QR code...     Not working? Try signing out.
-    </div>
-  )}
-</div>
+</QRCodeLock>
+<div className="mb-8">
+
+      </div>
 
       {/* ─── TWO-COLUMN GRID: Email + SMS ──────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

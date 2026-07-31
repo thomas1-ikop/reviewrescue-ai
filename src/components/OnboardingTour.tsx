@@ -43,10 +43,20 @@ export default function OnboardingTour({ userId, onComplete, onStepChange }: Onb
       description: 'Have a question or want to share feedback? Use this tab to contact us directly or submit your thoughts. We\'re here to help!',
     },
     {
+    id: 'billing', // ✅ ADD THIS
+    title: 'Billing & Subscription',
+    description: 'Manage your plan, view subscription status, upgrade or downgrade your plan, and cancel your subscription. All your billing details in one place.',
+  },
+    {
       id: 'dashboardSettings',
       title: 'Settings',
       description: 'Update your business name, industry, AI tone, and contact email. Manage your subscription, upgrade, or cancel your plan. This is your control center.',
     },
+    {
+    id: 'demo', // ✅ ADD THIS (external link)
+    title: 'Book a Demo',
+    description: 'Schedule a 20-minute call with Thomas, the founder of Rewakely. Get personalized help and see how Rewakely can help your business.',
+  }
   ];
 
   const totalSteps = steps.length;
