@@ -228,7 +228,6 @@ useEffect(() => {
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  // ===== PUBLIC ROUTES =====
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
     return;
@@ -236,10 +235,28 @@ useEffect(() => {
 
   // ===== RESTORE SESSION =====
   const restoredUser = loadPersistedUserSession();
+  console.log('🔍 [App] loadPersistedUserSession result:', restoredUser);
+
   if (restoredUser) {
     setUser(restoredUser);
+    console.log('✅ [App] User set with plan:', restoredUser.subscription_plan);
     if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
       setCurrentRoute('dashboard');
+    }
+  } else {
+    // ─── FALLBACK: Directly check localStorage if the function failed ──
+    const directUser = localStorage.getItem('reviewrescue_user');
+    if (directUser) {
+      try {
+        const parsed = JSON.parse(directUser);
+        console.log('🔍 [App] Fallback: loaded directly from localStorage', parsed);
+        setUser(parsed);
+        if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+          setCurrentRoute('dashboard');
+        }
+      } catch (e) {
+        console.error('❌ [App] Fallback parse error', e);
+      }
     }
   }
 

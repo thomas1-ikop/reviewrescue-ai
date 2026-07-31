@@ -233,37 +233,40 @@ const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
                 </button>
               )}
               {plan === 'pro' && (
-                <>
-                  <button
-                    onClick={() => handleUpgrade('premium')}
-                    disabled={isUpgrading}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 transition group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <ArrowUpCircle className="w-5 h-5 text-amber-600" />
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-amber-800">Upgrade to Premium</p>
-                        <p className="text-[10px] text-amber-600">Get SMS, Widget, Insights & more</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-amber-800">$89/mo</span>
-                  </button>
-                  <button
-                    onClick={() => handleUpgrade('basic')}
-                    disabled={isUpgrading}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <ArrowDownCircle className="w-5 h-5 text-slate-600" />
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-slate-700">Downgrade to Basic</p>
-                        <p className="text-[10px] text-slate-500">Keep core features</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-slate-700">$19/mo</span>
-                  </button>
-                </>
-              )}
+  <>
+    {/* ✅ Premium button removed - Premium plan not available yet */}
+    {/* 
+    <button
+      onClick={() => handleUpgrade('premium')}
+      disabled={isUpgrading}
+      className="w-full flex items-center justify-between px-4 py-3 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 transition group"
+    >
+      <div className="flex items-center gap-3">
+        <ArrowUpCircle className="w-5 h-5 text-amber-600" />
+        <div className="text-left">
+          <p className="text-sm font-semibold text-amber-800">Upgrade to Premium</p>
+          <p className="text-[10px] text-amber-600">Get SMS, Widget, Insights & more</p>
+        </div>
+      </div>
+      <span className="text-sm font-bold text-amber-800">$89/mo</span>
+    </button>
+    */}
+    <button
+      onClick={() => handleUpgrade('basic')}
+      disabled={isUpgrading}
+      className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition group"
+    >
+      <div className="flex items-center gap-3">
+        <ArrowDownCircle className="w-5 h-5 text-slate-600" />
+        <div className="text-left">
+          <p className="text-sm font-semibold text-slate-700">Downgrade to Basic</p>
+          <p className="text-[10px] text-slate-500">Keep core features</p>
+        </div>
+      </div>
+      <span className="text-sm font-bold text-slate-700">$19/mo</span>
+    </button>
+  </>
+)}
               {plan === 'premium' && (
                 <button
                   onClick={() => handleUpgrade('pro')}
