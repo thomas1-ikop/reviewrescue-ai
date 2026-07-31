@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lock, Crown, ArrowUpRight } from 'lucide-react';
-import { Plan } from '../lib/plans';
+import { Plan, isAtLeast } from '../lib/plans';
 
 interface QRCodeLockProps {
   children: React.ReactNode;
@@ -17,6 +17,14 @@ export default function QRCodeLock({
   requiredPlan,
   message
 }: QRCodeLockProps) {
+  // ✅ CHECK IF USER HAS ACCESS
+  const hasAccess = isAtLeast(currentPlan, requiredPlan);
+  
+  // If user has access, show the content normally
+  if (hasAccess) {
+    return <>{children}</>;
+  }
+
   const planNames: Record<Plan, string> = {
     basic: 'Basic',
     pro: 'Pro',
