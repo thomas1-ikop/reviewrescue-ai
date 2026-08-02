@@ -62,21 +62,34 @@ const [isDisconnecting, setIsDisconnecting] = useState(false);
   const logsPerPage = 5;
 
   const fetchGmbStatus = async () => {
-    try {
-      const res = await fetch('/api/google/status', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setGmbConnected(data.connected);
-        setLocationName(data.location_name);
-      }
-    } catch (e) {
-      console.error('Failed to get Google status:', e);
-    } finally {
-      setCheckingConnection(false);
+  try {
+    const res = await fetch('/api/google/status', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setGmbConnected(data.connected);
+      setLocationName(data.location_name);
+    }
+  } catch (e) {
+    console.error('Failed to get Google status:', e);
+  } finally {
+    setCheckingConnection(false);
+  }
+};
+
+useEffect(() => {
+  // Listen for Google OAuth success
+  const handleMessage = (event: MessageEvent) => {
+    if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+      fetchGmbStatus();
+      fetchStatsAndLogs();
+      toast('✅ Google My Business connected successfully!', 'success');
     }
   };
+  window.addEventListener('message', handleMessage);
+  return () => window.removeEventListener('message', handleMessage);
+}, []);
 
   const handleConnectGmb = () => {
     const width = 600;
@@ -91,11 +104,14 @@ const [isDisconnecting, setIsDisconnecting] = useState(false);
     );
 
     const messageListener = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'OAUTH_AUTH_SUCCESS') {
-        fetchGmbStatus();
-        fetchStatsAndLogs();
-      }
-    };
+  if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+    fetchGmbStatus();
+    fetchStatsAndLogs();
+    // ✅ Force a re-render to update the UI
+    setGmbConnected(true); // Optimistic update
+    toast('✅ Google My Business connected successfully!', 'success');
+  }
+};
 
     window.addEventListener('message', messageListener);
   };
@@ -196,13 +212,13 @@ const handleDisconnectConfirm = async () => {
     setIsReplyingToId(reviewId);
     try {
       const res = await fetch('/api/reviews/reply', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': profile.id
-        },
-        body: JSON.stringify({ reviewId, replyText: draftText })
-      });
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
+  },
+  body: JSON.stringify({ reviewId, replyText: draftText })
+});
       if (res.ok) {
         // Clear draft
         setReplyDrafts(prev => {
@@ -234,13 +250,13 @@ const handleDisconnectConfirm = async () => {
     const nextState = !isEnabled;
     try {
       const res = await fetch('/api/user/autopilot-toggle', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': profile.id
-        },
-        body: JSON.stringify({ userId: profile.id, enabled: nextState })
-      });
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
+  },
+  body: JSON.stringify({ enabled: nextState }) // ✅ Removed userId (now in headers)
+});
 
       if (res.ok) {
         const data = await res.json();
@@ -266,13 +282,13 @@ const handleDisconnectConfirm = async () => {
     setIsSyncing(true);
     try {
       const res = await fetch('/api/autopilot/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': profile.id
-        },
-        body: JSON.stringify({ userId: profile.id })
-      });
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
+  },
+  body: JSON.stringify({}) // ✅ Removed userId (now in headers)
+});
 
       if (res.ok) {
         const data = await res.json();

@@ -267,7 +267,7 @@ const authLimiter = rateLimit({
   max: 5, // Only 5 login attempts per IP per 15 minutes
   message: {
     error: 'Too many login attempts. Try again in 15 minutes.'
-  },
+  }, 
   skip: (req) => {
     // Skip rate limiting for non-auth routes
     return !req.path.includes('/api/user/auth');
@@ -3949,13 +3949,9 @@ app.get('/api/google/callback', async (req, res) => {
   }
 });
 
-app.get('/api/google/status', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) return res.status(400).json({ error: 'userId header missing' });
-
-  if (!supabaseServiceClient) {
-    return res.json({ connected: false, location_name: null });
-  }
+app.get('/api/google/status', authenticate, async (req, res) => {
+  const userId = req.userId; // Now from JWT
+  if (!userId) return res.status(400).json({ error: 'User not authenticated' });
 
   try {
     const { data, error } = await supabaseServiceClient
@@ -3970,7 +3966,7 @@ app.get('/api/google/status', async (req, res) => {
 
     res.json({ connected: true, location_name: `GMB Location: ${data.location_id}` });
   } catch (err) {
-    res.json({ connected: false, location_name: null });
+    res.status(500).json({ error: 'Failed to check Google status' });
   }
 });
 
