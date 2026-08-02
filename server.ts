@@ -13,8 +13,10 @@ import twilio from 'twilio';
 import { createClient } from '@supabase/supabase-js';
 import rateLimit from 'express-rate-limit';
 import nodemailer from 'nodemailer';
+import cors from 'cors';
 import crypto from 'crypto';
 import { Profile, Review, Invite, ReviewSource, ReviewStatus } from './src/types';
+
 
 
 declare global {
@@ -25,109 +27,93 @@ declare global {
   }
 }
 
+const PLAN_LEVELS = {
+  basic: 1,
+  pro: 2,
+  premium: 3,
+} as const;
 
-// -------------------- AUTHENTICATION MIDDLEWARE --------------------
-const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = req.headers['x-user-id'] as string | undefined;
-  
-  // ✅ Also check for Authorization header (JWT)
-  const authHeader = req.headers.authorization;
-  
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
+type PlanTier = keyof typeof PLAN_LEVELS;
+
+// Middleware builder to enforce required plan tier on API routes
+export const requirePlan = (requiredPlan: PlanTier) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { data: { user }, error } = await supabaseClient.auth.getUser(token);
-      if (error || !user) {
-        return res.status(401).json({ error: 'Invalid token' });
+      // 1. Extract bearer token or session user from header
+      const authHeader = req.headers.authorization;
+      if (!authHeader) {
+        return res.status(401).json({ error: 'Missing authorization header' });
       }
-      req.userId = user.id;
-      return next();
+
+      const token = authHeader.split(' ')[1];
+      const { data: { user }, error: authError } = await supabaseServiceClient.auth.getUser(token);
+
+      if (authError || !user) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+
+      // 2. Fetch ground-truth subscription plan from backend DB
+      const { data: profile, error: profileError } = await supabaseServiceClient
+        .from('profiles')
+        .select('subscription_plan, subscription_status')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError || !profile) {
+        return res.status(403).json({ error: 'User profile or subscription not found' });
+      }
+
+      // 3. Verify active status
+      if (profile.subscription_status !== 'active') {
+        return res.status(403).json({ error: 'Subscription is inactive or past due' });
+      }
+
+      // 4. Compare user plan level vs required route level
+      const userPlan = (profile.subscription_plan as PlanTier) || 'basic';
+      if (PLAN_LEVELS[userPlan] < PLAN_LEVELS[requiredPlan]) {
+        return res.status(403).json({
+          error: `Access denied. This endpoint requires a ${requiredPlan.toUpperCase()} tier subscription.`,
+        });
+      }
+
+      // Attach user to request object for downstream handlers
+      (req as any).user = user;
+      next();
     } catch (err) {
-      // Fall through to userId check
+      console.error('Plan enforcement middleware error:', err);
+      res.status(500).json({ error: 'Internal server error during authorization' });
     }
-  }
-  
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized: missing user ID' });
-  }
-  req.userId = userId;
-  next();
+  };
 };
 
 
-const PLAN_ORDER = ['basic', 'pro', 'premium'];
+// -------------------- AUTHENTICATION MIDDLEWARE --------------------
+const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
 
-function getUserPlan(plan: string): string {
-  return plan || 'basic';
-}
-
-function isAtLeastPlan(userPlan: string, requiredPlan: string): boolean {
-  return PLAN_ORDER.indexOf(userPlan) >= PLAN_ORDER.indexOf(requiredPlan);
-}
-
-// ─── MIDDLEWARE: Check if user is at least Pro ────────────────
-async function requirePro(req: Request, res: Response, next: NextFunction) {
-  const userId = req.userId;
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
   }
+
+  const token = authHeader.split(' ')[1];
 
   try {
-    const { data: profile, error } = await supabaseServiceClient
-      .from('profiles')
-      .select('subscription_plan')
-      .eq('id', userId)
-      .single();
+    const { data: { user }, error } = await supabaseServiceClient.auth.getUser(token);
 
-    if (error || !profile) {
-      return res.status(404).json({ error: 'User not found' });
+    if (error || !user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
     }
 
-    const plan = profile.subscription_plan || 'basic';
-    if (!isAtLeastPlan(plan, 'pro')) {
-      return res.status(403).json({
-        error: 'upgrade_required',
-        message: 'Upgrade to Pro to use this feature'
-      });
-    }
-
+    req.userId = user.id;
     next();
   } catch (err) {
-    return res.status(500).json({ error: 'Server error' });
+    console.error('JWT Auth Error:', err);
+    return res.status(401).json({ error: 'Unauthorized: Token verification failed' });
   }
-}
+};
 
-// ─── MIDDLEWARE: Check if user is Premium ──────────────────────
-async function requirePremium(req: Request, res: Response, next: NextFunction) {
-  const userId = req.userId;
-  if (!userId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
-  try {
-    const { data: profile, error } = await supabaseServiceClient
-      .from('profiles')
-      .select('subscription_plan')
-      .eq('id', userId)
-      .single();
 
-    if (error || !profile) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const plan = profile.subscription_plan || 'basic';
-    if (!isAtLeastPlan(plan, 'premium')) {
-      return res.status(403).json({
-        error: 'upgrade_required',
-        message: 'Upgrade to Premium to use this feature'
-      });
-    }
-
-    next();
-  } catch (err) {
-    return res.status(500).json({ error: 'Server error' });
-  }
-}
 
 
 
@@ -170,10 +156,15 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   // ─── HANDLE THE EVENT ───
   try {
+    
     if (event.type === 'checkout.session.completed') {
+     
       const session = event.data.object;
       const userId = session.client_reference_id || session.metadata?.userId;
-      
+
+       console.log(`[STRIPE] Webhook received: ${event.type} for user ${userId || 'unknown'}`);
+        console.log(`[STRIPE] User ${userId} upgraded to ${session.metadata?.plan || 'unknown'} plan`);
+
       if (!userId) {
         console.error('❌ No userId found in checkout session');
         return res.status(400).send('Missing userId');
@@ -224,6 +215,7 @@ const { data: updatedProfile, error: updateError } = await supabaseServiceClient
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object;
       const customerId = subscription.customer;
+       console.log(`[STRIPE] Subscription cancelled for customer ${customerId}`);
       
       if (customerId) {
         const { data: matchedProfiles } = await supabaseServiceClient
@@ -268,6 +260,69 @@ const limiter = rateLimit({
 
 // Apply to all API routes
 app.use('/api/', limiter);
+
+// ─── STRICT RATE LIMITING FOR AUTH (Prevent Brute Force) ────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Only 5 login attempts per IP per 15 minutes
+  message: {
+    error: 'Too many login attempts. Try again in 15 minutes.'
+  },
+  skip: (req) => {
+    // Skip rate limiting for non-auth routes
+    return !req.path.includes('/api/user/auth');
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply auth limiter BEFORE the general limiter
+app.use(authLimiter);
+
+// -------------------- CORS RESTRICTIONS --------------------
+
+
+// Allow only your domain + localhost (for development)
+const allowedOrigins = [
+  'https://rewakely.com',
+  'http://localhost:3000',
+  'https://rewakely.onrender.com', // ✅ Add this
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true, // Allow cookies/auth headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'] // ✅ Keep for backward compat (though we're phasing out x-user-id)
+}));
+
+// Security headers (you already have these)
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// -------------------- REQUEST LOGGING --------------------
+app.use((req, res, next) => {
+  const start = Date.now();
+
+  // Log the request
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
+
+  // Log the response time when the request finishes
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
+  });
+
+  next();
+});
 
 
 app.use(express.json({
@@ -1043,8 +1098,11 @@ app.post('/api/user/auth', async (req, res) => {
   });
 
   if (error) {
+     console.log(`[AUTH] Failed signup for ${email}: ${error.message}`);
     return res.status(401).json({ error: error.message });
   }
+
+  console.log(`[AUTH] Successful login for ${email} (User ID: ${data.user.id})`);
 
   if (!data.user) {
     return res.status(401).json({ error: 'Login failed - No user object returned.' });
@@ -1119,7 +1177,11 @@ app.post('/api/user/auth', async (req, res) => {
     });
   }
 
-  return res.json({ profile, isFallback: false });
+  return res.json({
+  profile,
+  access_token: data.session?.access_token || null, // ✅ Add this
+  isFallback: false
+});
 }
 
     if (manualUserId) {
@@ -1365,7 +1427,9 @@ async function sendPasswordResetEmail(email: string, resetLink: string): Promise
 }
 
 app.post('/api/user/onboarding', async (req, res) => {
-  const { userId, businessName, industry, tone } = req.body;
+  const { businessName, industry, tone } = req.body;
+  const userId = req.userId;
+
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
   }
@@ -1378,9 +1442,9 @@ app.post('/api/user/onboarding', async (req, res) => {
   res.json({ profile, isFallback });
 });
 
-app.post('/api/user/profile', async (req, res) => {
-  const { userId, business_name, industry, tone, contact_email, tour_completed } = req.body;
-  if (!userId) return res.status(400).json({ error: 'userId is required' });
+app.post('/api/user/profile', authenticate, async (req, res) => {
+  const userId = req.userId;
+  const { business_name, industry, tone, contact_email, tour_completed } = req.body;
 
   const updates: any = {};
   if (business_name !== undefined) updates.business_name = business_name;
@@ -1393,24 +1457,21 @@ app.post('/api/user/profile', async (req, res) => {
   res.json({ profile, isFallback });
 });
 
-app.post('/api/user/tour-complete', async (req, res) => {
-  const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: 'userId is required' });
+app.post('/api/user/tour-complete', authenticate, async (req, res) => {
+  const userId = req.userId;
 
   const { data: profile, isFallback } = await updateProfile(userId, { tour_completed: true });
   res.json({ profile, isFallback });
 });
 
-app.get('/api/reviews', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) return res.status(400).json({ error: 'userId header missing' });
-
+app.get('/api/reviews', authenticate, async (req, res) => {
+  const userId = req.userId;
   const { data: reviews, isFallback } = await getReviews(userId);
   res.json({ reviews, isFallback });
 });
 
-app.post('/api/reviews/import', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.post('/api/reviews/import', authenticate, async (req, res) => {
+  const userId = req.userId;
   const { customerName, rating, comment, source } = req.body;
 
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
@@ -1439,8 +1500,8 @@ app.post('/api/reviews/import', async (req, res) => {
   res.json({ review: inserted, isFallback });
 });
 
-app.post('/api/reviews/reply', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.post('/api/reviews/reply', authenticate, async (req, res) => {
+  const userId = req.userId;
   const { reviewId, replyText } = req.body;
 
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
@@ -1562,8 +1623,8 @@ Tone should be: ${tone || 'Professional & Direct'}`;
 // ===== DELETE REVIEW ENDPOINTS =====
 
 // Clear all reviews for a user – MUST come BEFORE the single delete
-app.delete('/api/reviews/clear', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.delete('/api/reviews/clear', authenticate, async (req, res) => {
+  const userId = req.userId;
 
   if (!userId) {
     return res.status(400).json({ error: 'userId header missing' });
@@ -1597,8 +1658,8 @@ app.delete('/api/reviews/clear', async (req, res) => {
 });
 
 // Delete a single review – must come AFTER the clear endpoint
-app.delete('/api/reviews/:reviewId', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.delete('/api/reviews/:reviewId', authenticate, async (req, res) => {
+  const userId = req.userId;
   const { reviewId } = req.params;
 
   if (!userId) {
@@ -1652,8 +1713,8 @@ app.delete('/api/reviews/:reviewId', async (req, res) => {
 
 
 
-app.get('/api/sms/invites', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.get('/api/sms/invites', authenticate, async (req, res) => {
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
   const { data: invites, isFallback } = await getInvites(userId);
@@ -1663,9 +1724,12 @@ app.get('/api/sms/invites', async (req, res) => {
 
 
 
-app.post('/api/sms/send-invite', authenticate, requirePremium, async (req, res) => {
+app.post('/api/sms/send-invite', authenticate, requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { customerName, phoneNumber } = req.body;
+
+  console.log(`[SMS] User ${userId} attempting to send invite to ${customerName} (${phoneNumber})`);
+
 
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
   if (!customerName || !phoneNumber) {
@@ -2285,9 +2349,8 @@ app.post('/api/stripe/cancel-feedback', async (req, res) => {
 });
 
 
-app.post('/api/google/disconnect', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
-  if (!userId) return res.status(400).json({ error: 'userId header missing' });
+app.post('/api/google/disconnect', authenticate, async (req, res) => {
+  const userId = req.userId;
 
   if (!supabaseServiceClient) {
     return res.status(500).json({ error: 'Supabase client not initialized' });
@@ -2314,8 +2377,8 @@ app.post('/api/google/disconnect', async (req, res) => {
   }
 });
 
-app.post('/api/reviews/simulate-google', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.post('/api/reviews/simulate-google', authenticate, requirePlan('pro'), async (req, res) => {
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
   const { data: profile } = await getProfile(userId);
@@ -2419,8 +2482,8 @@ Aesthetic Tone: ${profile.tone}`;
 
 
 
-app.get('/api/autopilot/logs', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.query.userId as string;
+app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res) => {
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
   let logs: any[] = [];
@@ -2476,8 +2539,8 @@ app.get('/api/autopilot/logs', async (req, res) => {
   res.json({ logs });
 });
 
-app.get('/api/autopilot/stats', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.query.userId as string;
+app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, res) => {
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId parameter is required' });
 
   let totalAutoReplies = 0;
@@ -2524,7 +2587,7 @@ app.get('/api/autopilot/stats', async (req, res) => {
 
 
 // ─── AUTOPILOT SYNC ──────────────────────────────────────────────
-app.post('/api/autopilot/sync', authenticate, requirePro, async (req, res) => {
+app.post('/api/autopilot/sync', authenticate, requirePlan('pro'), async (req, res) => {
   const userId = req.userId; // ✅ Already set by authenticate middleware
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2755,7 +2818,7 @@ app.get('/api/business/:id', async (req, res) => {
 // SAVE AUTO-SEND TOGGLE STATE
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.post('/api/sms/auto-send/toggle', authenticate, requirePremium, async (req, res) => {
+app.post('/api/sms/auto-send/toggle', authenticate, requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { enabled, sendDelay } = req.body;
 
@@ -2788,8 +2851,7 @@ app.post('/api/sms/auto-send/toggle', authenticate, requirePremium, async (req, 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET AUTO-SEND STATE
 // ─────────────────────────────────────────────────────────────────────────────
-
-app.get('/api/sms/auto-send/state', authenticate, async (req, res) => {
+app.get('/api/sms/auto-send/state', authenticate, requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
 
   // 1. Fetch profile settings
@@ -2840,8 +2902,8 @@ app.get('/api/sms/auto-send/state', authenticate, async (req, res) => {
    
 
 
-app.get('/api/sms/upcoming', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.get('/api/sms/upcoming', authenticate, async (req, res) => {
+  const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ error: 'userId header missing' });
   }
@@ -2869,9 +2931,8 @@ app.get('/api/sms/upcoming', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET SCHEDULED CUSTOMERS
 // ─────────────────────────────────────────────────────────────────────────────
-
-app.get('/api/sms/scheduled-customers', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.get('/api/sms/scheduled-customers', authenticate, async (req, res) => {
+  const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ error: 'userId header missing' });
   }
@@ -3397,7 +3458,7 @@ async function syncAllAutopilotGMB() {
 
 
 // -------------------- AUTOPILOT TOGGLE --------------------
-app.post('/api/user/autopilot-toggle', authenticate, requirePro, async (req, res) => {
+app.post('/api/user/autopilot-toggle', authenticate, requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   const { enabled } = req.body;
 
@@ -3601,8 +3662,9 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
 
 
-app.get('/api/autopilot/logs', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.query.userId as string;
+app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res) => {
+  const userId = req.userId;
+
   if (!userId) return res.status(400).json({ error: 'userId is required' });
 
   if (!supabaseServiceClient) {
@@ -3653,8 +3715,8 @@ app.get('/api/autopilot/logs', async (req, res) => {
   }
 });
 
-app.get('/api/autopilot/stats', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.query.userId as string;
+app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, res) => {
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
 
   if (!supabaseServiceClient) {
@@ -3689,8 +3751,8 @@ app.get('/api/autopilot/stats', async (req, res) => {
 });
 
 // ─── GET FEEDBACK SUBMISSIONS ──────────────────────────────────────
-app.get('/api/feedback/submissions', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+app.get('/api/feedback/submissions', authenticate, async (req, res) => {
+  const userId = req.userId;
   
   console.log('🔍 [Feedback] Fetching for user:', userId);
 
@@ -3912,9 +3974,8 @@ app.get('/api/google/status', async (req, res) => {
   }
 });
 
-app.get('/api/notifications', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.query.userId as string;
-  if (!userId) return res.status(400).json({ error: 'userId parameter is required' });
+app.get('/api/notifications', authenticate, async (req, res) => {
+  const userId = req.userId;
 
   if (!supabaseServiceClient) {
     return res.json({ notifications: [] });
@@ -3937,8 +3998,8 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
-app.post('/api/notifications/mark-read', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string || req.body.userId as string;
+app.post('/api/notifications/mark-read', authenticate, async (req, res) => {
+  const userId = req.userId;
   const { notificationId } = req.body;
 
   if (!userId) return res.status(400).json({ error: 'userId parameter is required' });
@@ -4002,7 +4063,7 @@ async function startServer() {
 // ──────────────────────────────────────────────────────────────
 
 // 1. POST – Schedule new customers
-app.post('/api/sms/schedule-customers', authenticate, requirePremium, async (req, res) => {
+app.post('/api/sms/schedule-customers', authenticate, requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { customers } = req.body;
 

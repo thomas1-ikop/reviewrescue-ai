@@ -6,7 +6,7 @@
   import { Calendar } from 'lucide-react';
   import {  User, CreditCard } from 'lucide-react';
 
-  import {
+import {
   loadPersistedUserSession,
   persistUserSession,
   updateStoredUser,
@@ -234,31 +234,31 @@ useEffect(() => {
   }
 
   // ===== RESTORE SESSION =====
-  const restoredUser = loadPersistedUserSession();
-  console.log('🔍 [App] loadPersistedUserSession result:', restoredUser);
+const { user: restoredUser, accessToken: restoredToken } = loadPersistedUserSession();
+console.log('🔍 [App] loadPersistedUserSession result:', restoredUser, restoredToken);
 
-  if (restoredUser) {
-    setUser(restoredUser);
-    console.log('✅ [App] User set with plan:', restoredUser.subscription_plan);
-    if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-      setCurrentRoute('dashboard');
-    }
-  } else {
-    // ─── FALLBACK: Directly check localStorage if the function failed ──
-    const directUser = localStorage.getItem('reviewrescue_user');
-    if (directUser) {
-      try {
-        const parsed = JSON.parse(directUser);
-        console.log('🔍 [App] Fallback: loaded directly from localStorage', parsed);
-        setUser(parsed);
-        if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-          setCurrentRoute('dashboard');
-        }
-      } catch (e) {
-        console.error('❌ [App] Fallback parse error', e);
+if (restoredUser) {
+  setUser(restoredUser); // ✅ Now passing just the user object
+  console.log('✅ [App] User set with plan:', restoredUser.subscription_plan);
+  if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+    setCurrentRoute('dashboard');
+  }
+} else {
+  // ─── FALLBACK: Directly check localStorage if the function failed ──
+  const directUser = localStorage.getItem('reviewrescue_user');
+  if (directUser) {
+    try {
+      const parsed = JSON.parse(directUser);
+      console.log('🔍 [App] Fallback: loaded directly from localStorage', parsed);
+      setUser(parsed);
+      if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+        setCurrentRoute('dashboard');
       }
+    } catch (e) {
+      console.error('❌ [App] Fallback parse error', e);
     }
   }
+}
 
   // ===== HASH HANDLING =====
   const handleUrlHashRedirects = () => {
@@ -283,7 +283,9 @@ useEffect(() => {
       try {
         // 1. Reviews
         const revRes = await fetch('/api/reviews', {
-          headers: { 'x-user-id': userId }
+           headers: {
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  }
         });
         const revData = await revRes.json();
         if (revData.reviews) {
@@ -302,7 +304,9 @@ useEffect(() => {
 
         // 2. SMS Feedback invites
         const invRes = await fetch('/api/sms/invites', {
-          headers: { 'x-user-id': userId }
+          headers: {
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  }
         });
         const invData = await invRes.json();
         if (invData.invites) {
@@ -379,8 +383,11 @@ useEffect(() => {
 
         await fetch('/api/user/tour-complete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id })
+          headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({}) // ✅ Empty body (userId now in headers)
         });
       } catch (err) {
         console.warn('Failed to persist tour completion to DB.');
@@ -423,26 +430,26 @@ useEffect(() => {
     console.log('🔐 Auth response:', data); // 👈 ADD THIS
 
     if (res.ok) {
-      if (data.verificationRequired) {
-        triggerToast('Check your email to confirm your account.', 'success');
-        setAuthBusinessName('');
-        setAuthPassword('');
-        setAuthError('Your account has been created successfully. We have sent a confirmation email to your email address. Please follow the instructions in the confirmation email in order to activate your account.');
-        setCurrentRoute('signin');
-        return;
+    if (data.verificationRequired) {
+      triggerToast('Check your email to confirm your account.', 'success');
+      setAuthBusinessName('');
+      setAuthPassword('');
+      setAuthError('Your account has been created successfully. We have sent a confirmation email to your email address. Please follow the instructions in the confirmation email in order to activate your account.');
+      setCurrentRoute('signin');
+      return;
+    }
+
+    if (data.profile) {
+      setUser(data.profile);
+      persistUserSession(data.profile, rememberMe, data.access_token); // ✅ Pass access_token
+
+      if (!data.profile.onboarded) {
+        setShowOnboarding(true);
+      } else {
+        setCurrentRoute('dashboard');
       }
-
-      if (data.profile) {
-  setUser(data.profile);
-  persistUserSession(data.profile, rememberMe);
-
-  if (!data.profile.onboarded) {
-    setShowOnboarding(true);
-  } else {
-    setCurrentRoute('dashboard');
-  }
-  triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
-} else {
+      triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
+    } else {
         console.log('❌ No profile in response'); // 👈 ADD THIS
       }
     } else {
@@ -458,7 +465,7 @@ useEffect(() => {
 
     const handleSignOut = () => {
   setUser(null);
-  clearUserSession();
+  clearUserSession(); // ✅ Already clears tokens (from updated authStorage.ts)
   setReviews([]);
   setInvites([]);
   setNegativeAlerts([]);
@@ -472,13 +479,16 @@ useEffect(() => {
       try {
         const res = await fetch('/api/user/onboarding', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id,
-            businessName: data.business_name,
-            industry: data.industry,
-            tone: data.tone
-          })
+          headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({
+    businessName: data.business_name,
+    industry: data.industry,
+    tone: data.tone
+    // ✅ Remove userId from body (now in headers)
+  })
         });
         const back = await res.json();
         
@@ -526,11 +536,11 @@ useEffect(() => {
     try {
       const res = await fetch('/api/reviews/import', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-id': user.id
-        },
-        body: JSON.stringify(reviewData)
+         headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify(reviewData)
       });
       const data = await res.json();
       if (data.review) {
@@ -549,15 +559,18 @@ useEffect(() => {
   try {
     const res = await fetch('/api/reviews/generate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reviewText: review.comment,
-        rating: review.rating,
-        businessName: user.business_name || 'Our establishment',
-        industry: user.industry || 'Business Cafe',
-        tone: user.tone || 'Friendly',
-        userId: user.id
-      })
+       headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({
+    reviewText: review.comment,
+    rating: review.rating,
+    businessName: user.business_name || 'Our establishment',
+    industry: user.industry || 'Business Cafe',
+    tone: user.tone || 'Friendly'
+    // ✅ Remove userId from body (now in headers)
+  })
     });
     
     if (res.status === 403) {
@@ -588,11 +601,11 @@ useEffect(() => {
       try {
         const res = await fetch('/api/reviews/reply', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-user-id': user.id
-          },
-          body: JSON.stringify({ reviewId, replyText })
+           headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({ reviewId, replyText })
         });
         const data = await res.json();
         if (data.review) {
@@ -610,11 +623,11 @@ useEffect(() => {
       try {
         const res = await fetch('/api/sms/send-invite', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-user-id': user.id 
-          },
-          body: JSON.stringify({ customerName, phoneNumber })
+            headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({ customerName, phoneNumber })
         });
         const data = await res.json();
         if (res.ok && data.invite) {
@@ -718,7 +731,10 @@ const handleCancelSubscription = async () => {
       try {
         const res = await fetch('/api/reviews/simulate-google', {
           method: 'POST',
-          headers: { 'x-user-id': user.id }
+          headers: {
+  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Content-Type': 'application/json'
+}
         });
         const data = await res.json();
         if (data.reviews) {
@@ -755,7 +771,10 @@ const handleCancelSubscription = async () => {
         try {
           const res = await fetch(`/api/reviews/${reviewId}`, {
             method: 'DELETE',
-            headers: { 'x-user-id': user.id }
+            headers: {
+  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Content-Type': 'application/json'
+}
           });
           if (res.ok) {
             setReviews(prev => prev.filter(r => r.id !== reviewId));
@@ -786,7 +805,10 @@ const handleCancelSubscription = async () => {
         try {
           const res = await fetch('/api/reviews/clear', {
             method: 'DELETE',
-            headers: { 'x-user-id': user.id }
+            headers: {
+  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Content-Type': 'application/json'
+}
           });
           if (res.ok) {
             setReviews([]);
@@ -813,14 +835,17 @@ const handleCancelSubscription = async () => {
     try {
       const res = await fetch('/api/user/profile', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          business_name: data.business_name,
-          industry: data.industry,
-          tone: data.tone,
-          contact_email: data.contact_email
-        })
+       headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+  },
+  body: JSON.stringify({
+    business_name: data.business_name,
+    industry: data.industry,
+    tone: data.tone,
+    contact_email: data.contact_email
+    // ✅ Remove userId from body (now in headers)
+  })
       });
       const back = await res.json();
       

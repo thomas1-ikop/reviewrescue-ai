@@ -64,7 +64,7 @@ const [isDisconnecting, setIsDisconnecting] = useState(false);
   const fetchGmbStatus = async () => {
     try {
       const res = await fetch('/api/google/status', {
-        headers: { 'x-user-id': profile.id }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -110,7 +110,7 @@ const handleDisconnectConfirm = async () => {
   try {
     const response = await fetch('/api/google/disconnect', {
       method: 'POST',
-      headers: { 'x-user-id': profile.id }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
     });
     if (response.ok) {
       setGmbConnected(false);
@@ -135,7 +135,7 @@ const handleDisconnectConfirm = async () => {
     try {
       // 1. Fetch Stats
       const statsRes = await fetch(`/api/autopilot/stats?userId=${profile.id}`, {
-        headers: { 'x-user-id': profile.id }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -146,7 +146,7 @@ const handleDisconnectConfirm = async () => {
 
       // 2. Fetch Logs
       const logsRes = await fetch(`/api/autopilot/logs?userId=${profile.id}`, {
-        headers: { 'x-user-id': profile.id }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
       if (logsRes.ok) {
         const logsData = await logsRes.json();
@@ -155,7 +155,7 @@ const handleDisconnectConfirm = async () => {
 
       // 3. Fetch All Reviews to find pending negative Google reviews (rating <= 3)
       const reviewsRes = await fetch('/api/reviews', {
-        headers: { 'x-user-id': profile.id }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
       if (reviewsRes.ok) {
         const reviewsData = await reviewsRes.json();
@@ -176,7 +176,7 @@ const handleDisconnectConfirm = async () => {
   try {
     const res = await fetch('/api/reviews/simulate-google', {
       method: 'POST',
-      headers: { 'x-user-id': profile.id }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
     });
     const data = await res.json();
     if (data.reviews) {

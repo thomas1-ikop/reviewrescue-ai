@@ -71,3 +71,44 @@ a:disabled,
   z-index: -5;
   opacity: 0.6;
 }
+
+
+/* ===== GLOBAL STYLES ===== */
+/* Standardize shadows */
+.shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+.shadow-md { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+
+/* Glassmorphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Consistent border radius */
+.rounded-2xl {
+  border-radius: 1rem;
+}
+
+/* Smooth transitions for all interactive elements */
+button, [role="button"], a, input, textarea, select {
+  transition: all 0.2s ease;
+}
+
+/* Hover effects for cards */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Focus styles for inputs */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.3); /* blue-500/30 */
+  border-color: rgba(59, 130, 246, 0.5); /* blue-500/50 */
+}
