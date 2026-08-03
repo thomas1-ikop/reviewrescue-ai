@@ -1509,7 +1509,7 @@ const handleCancelSubscription = async () => {
         </p>
 
         <p className="mt-4 text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
-          I'm building this in public. If you run a local business and hate dealing with reviews, 
+          If you run a local business and hate dealing with reviews, but know they matter,
           I'd love to show you what I built. 
           <span className="block mt-1 font-medium text-blue-600">Free audit. No pressure. Just honest feedback.</span>
         </p>
