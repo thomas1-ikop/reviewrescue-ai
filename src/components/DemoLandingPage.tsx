@@ -74,7 +74,7 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
     id="rewakely-demo-player"
     width="100%"
     height="100%"
-    src="https://www.youtube.com/embed/YOUR_VIDEO_ID?enablejsapi=1&rel=0"
+    src="https://www.youtube.com/embed/S30rO760yd0?enablejsapi=1&rel=0"
     title="Rewakely Demo"
     frameBorder="0"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
