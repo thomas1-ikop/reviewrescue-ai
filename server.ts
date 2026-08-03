@@ -1256,90 +1256,6 @@ app.post('/api/waitlist', async (req, res) => {
 //here10
 
 
-// ===== DEMO SIGNUP ENDPOINT =====
-app.post('/api/demo-signup', async (req, res) => {
-  const { email } = req.body;
-
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email is required' });
-  }
-
-  try {
-    // Save to Supabase (create the 'demo_signups' table first!)
-    const { error } = await supabaseServiceClient
-      .from('demo_signups')
-      .insert([{ email, created_at: new Date().toISOString() }]);
-
-    if (error) {
-      console.error('Demo signup error:', error);
-      return res.status(500).json({ error: 'Failed to save email' });
-    }
-
-    // ✅ Optional: Send a welcome email with the video link
-    // (We'll add this later if needed)
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo signup server error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-
-//here11
-
-// ===== TRACK DEMO VIEWS =====
-app.post('/api/track-demo-view', async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-  try {
-    await supabaseServiceClient
-      .from('demo_views') // ✅ Create this table first!
-      .insert([{ email, viewed_at: new Date().toISOString() }]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo view tracking error:', err);
-    res.status(500).json({ error: 'Failed to track view' });
-  }
-});
-
-
-// ===== LOG DEMO VIDEO EVENTS =====
-app.post('/api/log-demo-event', async (req, res) => {
-  const { email, event, watch_percentage } = req.body;
-
-  if (!email || !event) {
-    return res.status(400).json({ error: 'Email and event are required' });
-  }
-
-  try {
-    // Determine if the user watched the video based on the event
-    const watched = event === 'ended' || watch_percentage >= 90;
-
-    // Save to Supabase
-    const { error } = await supabaseServiceClient
-      .from('demo_analytics')
-      .insert([{
-        email,
-        watched,
-        watch_percentage,
-        created_at: new Date().toISOString()
-      }]);
-
-    if (error) {
-      console.error('Demo analytics error:', error);
-      return res.status(500).json({ error: 'Failed to log event' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo analytics server error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 
 //here13
 
@@ -1559,6 +1475,93 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 });
 
+
+
+
+
+// ===== DEMO SIGNUP ENDPOINT =====
+app.post('/api/demo-signup', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  try {
+    // Save to Supabase (create the 'demo_signups' table first!)
+    const { error } = await supabaseServiceClient
+      .from('demo_signups')
+      .insert([{ email, created_at: new Date().toISOString() }]);
+
+    if (error) {
+      console.error('Demo signup error:', error);
+      return res.status(500).json({ error: 'Failed to save email' });
+    }
+
+    // ✅ Optional: Send a welcome email with the video link
+    // (We'll add this later if needed)
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo signup server error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+//here11
+
+// ===== TRACK DEMO VIEWS =====
+app.post('/api/track-demo-view', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    await supabaseServiceClient
+      .from('demo_views') // ✅ Create this table first!
+      .insert([{ email, viewed_at: new Date().toISOString() }]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo view tracking error:', err);
+    res.status(500).json({ error: 'Failed to track view' });
+  }
+});
+
+
+// ===== LOG DEMO VIDEO EVENTS =====
+app.post('/api/log-demo-event', async (req, res) => {
+  const { email, event, watch_percentage } = req.body;
+
+  if (!email || !event) {
+    return res.status(400).json({ error: 'Email and event are required' });
+  }
+
+  try {
+    // Determine if the user watched the video based on the event
+    const watched = event === 'ended' || watch_percentage >= 90;
+
+    // Save to Supabase
+    const { error } = await supabaseServiceClient
+      .from('demo_analytics')
+      .insert([{
+        email,
+        watched,
+        watch_percentage,
+        created_at: new Date().toISOString()
+      }]);
+
+    if (error) {
+      console.error('Demo analytics error:', error);
+      return res.status(500).json({ error: 'Failed to log event' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo analytics server error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 
 
