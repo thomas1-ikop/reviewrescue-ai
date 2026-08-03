@@ -1583,32 +1583,36 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
 
 
-// ===== DEMO SIGNUP ENDPOINT =====
+// ─── DEMO SIGNUP ──────────────────────────────────────────────────────
 app.post('/api/demo-signup', async (req, res) => {
-  const { email } = req.body;
+  const { email, businessName } = req.body;
 
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Valid email is required' });
   }
 
   try {
-    // Save to Supabase (create the 'demo_signups' table first!)
+    // Create table if it doesn't exist
+    // CREATE TABLE IF NOT EXISTS demo_signups (
+    //   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    //   email TEXT NOT NULL,
+    //   business_name TEXT,
+    //   created_at TIMESTAMPTZ DEFAULT now()
+    // );
+
     const { error } = await supabaseServiceClient
       .from('demo_signups')
-      .insert([{ email, created_at: new Date().toISOString() }]);
+      .insert([{ 
+        email, 
+        business_name: businessName || null 
+      }]);
 
-    if (error) {
-      console.error('Demo signup error:', error);
-      return res.status(500).json({ error: 'Failed to save email' });
-    }
-
-    // ✅ Optional: Send a welcome email with the video link
-    // (We'll add this later if needed)
+    if (error) throw error;
 
     res.json({ success: true });
-  } catch (err) {
-    console.error('Demo signup server error:', err);
-    res.status(500).json({ error: 'Server error' });
+  } catch (err: any) {
+    console.error('Demo signup error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

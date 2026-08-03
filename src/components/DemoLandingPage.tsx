@@ -1,14 +1,15 @@
 // src/components/DemoLandingPage.tsx
 import React, { useState } from 'react';
-import { PlayCircle, ArrowRight, Star, CheckCircle2, Rocket, RefreshCw, ArrowLeft, Calendar, Info } from 'lucide-react';
+import { PlayCircle, ArrowRight, Star, CheckCircle2, Rocket, RefreshCw, ArrowLeft, Calendar, Info, Building2 } from 'lucide-react';
 import Logo from './Logo';
 
 interface DemoLandingPageProps {
-  setCurrentRoute: (route: string) => void; // ✅ Add this prop
+  setCurrentRoute: (route: string) => void;
 }
 
 export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProps) {
   const [email, setEmail] = useState('');
+  const [businessName, setBusinessName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,10 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
       const res = await fetch('/api/demo-signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ 
+          email, 
+          businessName: businessName.trim() || null 
+        })
       });
       if (res.ok) {
         setIsSuccess(true);
@@ -51,10 +55,7 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
           </div>
           <h1 className="text-2xl font-bold text-slate-900">Watch The Demo Video Below!</h1>
           <p className="text-slate-500 mt-2">
-            The demo briefly talks about what we offer. If you're interested please book a meeting tailored to your business on our website .
-          </p>
-          <p className="text-sm text-slate-400 mt-4">
-            
+            The demo briefly talks about what we offer. If you're interested please book a meeting tailored to your business on our website.
           </p>
 
           {/* Return to Home Button */}
@@ -70,70 +71,62 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
 
           {/* Video */}
           <div className="mt-8 bg-slate-900 rounded-2xl aspect-video max-w-3xl mx-auto shadow-2xl overflow-hidden">
-  <iframe
-    id="rewakely-demo-player"
-    width="100%"
-    height="100%"
-    src="https://www.youtube.com/embed/S30rO760yd0?enablejsapi=1&rel=0"
-    title="Rewakely Demo"
-    frameBorder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-    className="w-full h-full"
-  />
-</div>
+            <iframe
+              id="rewakely-demo-player"
+              width="100%"
+              height="100%"
+              src="https://www.youtube.com/embed/S30rO760yd0?enablejsapi=1&rel=0"
+              title="Rewakely Demo"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full"
+            />
+          </div>
+
           {/* ===== CTAs BELOW VIDEO ===== */}
-<div className="mt-8 max-w-2xl mx-auto">
-  <h2 className="text-xl font-bold text-slate-900 text-center mb-6">
-    Ready to Turn Your Reviews Into Customers?
-  </h2>
+          <div className="mt-8 max-w-2xl mx-auto">
+            <h2 className="text-xl font-bold text-slate-900 text-center mb-6">
+              Ready to Turn Your Reviews Into Customers?
+            </h2>
 
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    {/* CTA 1: Start Free Trial */}
-    <button
-      onClick={() => {
-        setCurrentRoute('signup');
-      }}
-      className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 text-sm font-semibold transition shadow-sm shadow-indigo-500/20 flex flex-col items-center gap-2"
-    >
-      <Rocket size={20} />
-      Start Now
-    </button>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                onClick={() => setCurrentRoute('signup')}
+                className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 text-sm font-semibold transition shadow-sm shadow-indigo-500/20 flex flex-col items-center gap-2"
+              >
+                <Rocket size={20} />
+                Start Now
+              </button>
 
-    {/* CTA 2: Book a Demo Call */}
-    <a
-      href="https://calendly.com/rewakely/15min"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="rounded-xl border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-4 py-3 text-sm font-semibold transition flex flex-col items-center gap-2"
-    >
-      <Calendar size={20} />
-      Book a Demo Call
-    </a>
+              <a
+                href="https://calendly.com/rewakely/15min"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-4 py-3 text-sm font-semibold transition flex flex-col items-center gap-2"
+              >
+                <Calendar size={20} />
+                Book a Demo Call
+              </a>
 
-    {/* CTA 3: Learn More */}
-    <button
-      onClick={() => {
-        setCurrentRoute('landing');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }}
-      className="rounded-xl border-2 border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-3 text-sm font-semibold transition flex flex-col items-center gap-2"
-    >
-      <Info size={20} />
-      Learn More
-    </button>
-  </div>
+              <button
+                onClick={() => {
+                  setCurrentRoute('landing');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="rounded-xl border-2 border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-3 text-sm font-semibold transition flex flex-col items-center gap-2"
+              >
+                <Info size={20} />
+                Learn More
+              </button>
+            </div>
 
-  {/* Social Proof (Optional) */}
-  <div className="mt-8 text-center">
-    <p className="text-xs text-slate-400">
-      © 2026 Rewakely. All rights reserved.
-    </p>
-    <div className="flex justify-center gap-6 mt-4 text-xs text-slate-500">
-       
-    </div>
-  </div>
-</div>
+            <div className="mt-8 text-center">
+              <p className="text-xs text-slate-400">
+                © 2026 Rewakely. All rights reserved.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -181,22 +174,44 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
 
         {/* Email Form */}
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setError(null);
-              }}
-              className="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              required
-            />
+          <div className="space-y-3">
+            {/* Email Field */}
+            <div>
+              <input
+                type="email"
+                placeholder="Your email address *"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              />
+            </div>
+
+            {/* Business Name Field (Optional) */}
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Building2 size={16} />
+              </div>
+              <input
+                type="text"
+                placeholder="Your business name"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+                Optional
+              </span>
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 text-sm font-semibold transition shadow-sm shadow-indigo-500/20 disabled:opacity-70"
+              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 text-sm font-semibold transition shadow-sm shadow-indigo-500/20 disabled:opacity-70"
             >
               {isSubmitting ? (
                 <RefreshCw size={16} className="animate-spin mx-auto" />
@@ -210,7 +225,7 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
           {error && <p className="text-sm text-red-600">{error}</p>}
         </form>
 
-        {/* Cancel Button (OUTSIDE the form) */}
+        {/* Cancel Button */}
         <button
           onClick={() => setCurrentRoute('landing')}
           className="mt-4 w-full text-sm text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1"
