@@ -1473,42 +1473,61 @@ const handleCancelSubscription = async () => {
         <div className="w-full border-t border-slate-200" />
       </div>
       <div className="relative flex justify-center">
-        <span className="px-4 bg-white/50 text-sm text-slate-400 font-medium">Real Feedback</span>
+        <span className="px-4 bg-white/50 text-sm text-slate-400 font-medium">Note From The Owner: </span>
       </div>
     </div>
 
-    {/* ─── TESTIMONIALS ────────────────────────────────────────────── */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {[
-        {
-          quote: "What used to take hours now takes seconds. Rewakely is a game‑changer.",
-          author: "— Mike, HVAC Contractor",
-          delay: 0.1,
-        },
-        {
-          quote: "The SMS and email feature is amazing. We get 5‑star reviews without even asking.",
-          author: "— Sarah, Dental Practice",
-          delay: 0.2,
-        },
-        {
-          quote: "Auto‑reply to Google reviews is my favorite feature. I never miss a review now.",
-          author: "— John, Roofing Company",
-          delay: 0.3,
-        },
-      ].map((item, idx) => (
-        <motion.div
-          key={idx}
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: item.delay }}
-          viewport={{ once: true }}
-          className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition"
-        >
-          <p className="text-sm text-slate-600 italic leading-relaxed">"{item.quote}"</p>
-          <p className="text-xs font-bold text-slate-800 mt-3">{item.author}</p>
-        </motion.div>
-      ))}
-    </div>
+      {/* ─── HONEST FOUNDER STATEMENT (Replaces Fake Testimonials) ── */}
+<section className="relative py-20 px-6">
+  <div className="max-w-4xl mx-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+      className="bg-white rounded-2xl border border-blue-200/50 shadow-lg p-8 md:p-12 text-center relative overflow-hidden"
+    >
+      {/* Decorative subtle background orb */}
+      <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="relative z-10">
+        <div className="flex justify-center mb-5">
+          <div className="p-3 bg-blue-50 rounded-full border border-blue-100">
+            <Sparkles className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+
+        <h3 className="text-xl md:text-3xl font-bold text-slate-900 leading-relaxed max-w-3xl mx-auto">
+          "
+   <span className="text-blue-600">100+ conversations</span> with business owners taught me one thing: <br />
+          <span className="underline decoration-blue-400 underline-offset-4">replying to reviews takes too much time."</span>
+        </h3>
+
+        <p className="mt-6 text-lg font-semibold text-slate-700">
+          — Thomas, Founder of Rewakely
+        </p>
+
+        <p className="mt-4 text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
+          I'm building this in public. If you run a local business and hate dealing with reviews, 
+          I'd love to show you what I built. 
+          <span className="block mt-1 font-medium text-blue-600">Free audit. No pressure. Just honest feedback.</span>
+        </p>
+        
+        <div className="mt-6">
+          <a 
+            href="https://calendly.com/rewakely/15min" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-800 transition border-b-2 border-blue-200 hover:border-blue-600 pb-0.5"
+          >
+            Book a free chat with me ☕
+          </a>
+        </div>
+      </div>
+    </motion.div>
+  </div>
+</section>
   </div>
 </section>
 
