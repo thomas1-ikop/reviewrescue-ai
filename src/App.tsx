@@ -229,37 +229,31 @@ useEffect(() => {
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  // ===== PUBLIC ROUTES =====
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
     return;
   }
 
-  // ===== RESTORE SESSION =====
   let restoredUser = null;
 
-  // 1. Try loadPersistedUserSession
   try {
     restoredUser = loadPersistedUserSession();
-    console.log('🔍 [App] loadPersistedUserSession result:', restoredUser);
   } catch (e) {
     console.error('❌ [App] loadPersistedUserSession error:', e);
   }
 
-  // 2. Fallback: Direct localStorage check
   if (!restoredUser) {
     try {
       const direct = localStorage.getItem('reviewrescue_user');
       if (direct) {
         restoredUser = JSON.parse(direct);
-        console.log('✅ [App] Fallback: loaded directly from localStorage');
       }
     } catch (e) {
       console.error('❌ [App] Fallback failed:', e);
     }
   }
 
-  // 3. If we have a user, set it
+  // ✅ CRITICAL: If no user, set user to null – DO NOT CREATE A DEFAULT USER
   if (restoredUser) {
     setUser(restoredUser);
     console.log('✅ [App] User restored with plan:', restoredUser.subscription_plan);
@@ -268,7 +262,7 @@ useEffect(() => {
     }
   } else {
     console.log('❌ [App] No user found in storage');
-    // ✅ IMPORTANT: Do NOT create a default user here
+    // ✅ IMPORTANT: Set to null, NOT a default user
     setUser(null);
   }
 
