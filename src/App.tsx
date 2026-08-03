@@ -229,37 +229,39 @@ useEffect(() => {
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
+  // ===== PUBLIC ROUTES =====
   const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
   if (publicRoutes.includes(currentRoute)) {
     return;
   }
 
   // ===== RESTORE SESSION =====
-const { user: restoredUser, accessToken: restoredToken } = loadPersistedUserSession();
-console.log('🔍 [App] loadPersistedUserSession result:', restoredUser, restoredToken);
-
-if (restoredUser) {
-  setUser(restoredUser); // ✅ Now passing just the user object
-  console.log('✅ [App] User set with plan:', restoredUser.subscription_plan);
-  if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-    setCurrentRoute('dashboard');
-  }
-} else {
-  // ─── FALLBACK: Directly check localStorage if the function failed ──
-  const directUser = localStorage.getItem('reviewrescue_user');
-  if (directUser) {
+  let restoredUser = null;
+  
+  // 1. Try loadPersistedUserSession
+  restoredUser = loadPersistedUserSession();
+  
+  // 2. Fallback: Direct localStorage
+  if (!restoredUser) {
     try {
-      const parsed = JSON.parse(directUser);
-      console.log('🔍 [App] Fallback: loaded directly from localStorage', parsed);
-      setUser(parsed);
-      if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-        setCurrentRoute('dashboard');
+      const direct = localStorage.getItem('reviewrescue_user');
+      if (direct) {
+        restoredUser = JSON.parse(direct);
+        console.log('✅ [App] Fallback: loaded directly from localStorage');
       }
     } catch (e) {
-      console.error('❌ [App] Fallback parse error', e);
+      console.error('❌ [App] Fallback failed:', e);
     }
   }
-}
+
+  if (restoredUser) {
+    setUser(restoredUser);
+    if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
+      setCurrentRoute('dashboard');
+    }
+  } else {
+    console.log('❌ [App] No user found in storage');
+  }
 
   // ===== HASH HANDLING =====
   const handleUrlHashRedirects = () => {
