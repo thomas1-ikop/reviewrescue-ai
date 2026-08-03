@@ -258,6 +258,1175 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable X-RateLimit-* headers
 });
 
+// here1
+
+app.post('/api/user/auth', async (req, res) => {
+  const { email, password, businessName, action, manualUserId } = req.body;
+
+  if (!supabaseClient) {
+    return res.status(500).json({ error: 'Supabase client is not initialized or credentials are missing.' });
+  }
+
+  try {
+    if (action === 'signup') {
+      if (!email || !password || !businessName) {
+        return res.status(400).json({ error: 'Email, password, and business name are required' });
+      }
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) {
+        return res.status(400).json({ error: `Verification email dispatch failed. Error: ${error.message}` });
+      }
+
+      if (!data.user) {
+        return res.status(400).json({ error: 'Signup failed - No user object returned.' });
+      }
+
+      const userId = data.user.id;
+      const profileData = {
+        id: userId,
+        email: email,
+        business_name: businessName || 'My Business',
+        industry: 'Other',
+        tone: 'Friendly',
+        subscription_status: 'inactive',
+        subscription_plan: 'pro',
+        onboarded: true,
+        tour_completed: false,
+        verified: false,
+        created_at: new Date().toISOString()
+      };
+
+      const { error: insertErr } = await (supabaseServiceClient || supabaseClient)
+        .from('profiles')
+        .insert([profileData]);
+
+      if (insertErr) {
+        console.error('Failed to create profile row with service level client:', insertErr.message);
+        return res.status(500).json({ error: `User created but profile initialization failed: ${insertErr.message}` });
+      }
+
+      // Send verification email (always)
+      sendVerificationEmail(email, userId, businessName || 'My Business')
+        .then(result => {
+          if (result.success) {
+            console.log(`Verification email sent to ${email}`);
+          } else {
+            console.error(`Verification email failed for ${email}:`, result.error);
+          }
+        })
+        .catch(err => console.error('Email send error:', err));
+
+      // Always require verification, do NOT log the user in
+      return res.json({
+        profile: null,
+        verificationRequired: true,
+        message: 'Verification email sent. Please check your inbox.',
+        isFallback: false
+      });
+    }
+
+    if (action === 'signin') {
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  // ─── STEP 1: Authenticate with Supabase Auth ──────────────────
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+     console.log(`[AUTH] Failed signup for ${email}: ${error.message}`);
+    return res.status(401).json({ error: error.message });
+  }
+
+  console.log(`[AUTH] Successful login for ${email} (User ID: ${data.user.id})`);
+
+  if (!data.user) {
+    return res.status(401).json({ error: 'Login failed - No user object returned.' });
+  }
+
+  const userId = data.user.id;
+  const userEmail = data.user.email; // ✅ This comes from Auth, not the request
+
+  // ─── STEP 2: Verify the user exists in Auth (extra safety) ──
+  try {
+    const { data: authUser, error: authError } = await supabaseServiceClient
+      .auth.admin.getUserById(userId);
+    if (authError || !authUser) {
+      console.warn(`Auth user ${userId} not found:`, authError);
+      return res.status(401).json({ error: 'User session invalid. Please log in again.' });
+    }
+  } catch (authErr: any) {
+    console.error('Auth verification error:', authErr);
+    return res.status(500).json({ error: 'Authentication service error.' });
+  }
+
+  // ─── STEP 3: Get or create profile ──────────────────────────────
+  let profile;
+  try {
+    const { data: prof, error: getErr } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (getErr) {
+      return res.status(500).json({ error: `Failed to fetch profile: ${getErr.message}` });
+    }
+
+    if (!prof) {
+      // ✅ Only create profile if the user is authenticated (we already verified)
+      const businessName = req.body.businessName || 'My Business';
+      const profileData = {
+        id: userId,
+        email: userEmail, // Use email from Auth, not from request (more reliable)
+        business_name: businessName,
+        industry: 'Other',
+        tone: 'Friendly',
+        subscription_status: 'inactive',
+        subscription_plan: 'pro',
+        onboarded: true,
+        tour_completed: false,
+        verified: false,
+        created_at: new Date().toISOString()
+      };
+
+      const { error: insertErr } = await (supabaseServiceClient || supabaseClient)
+        .from('profiles')
+        .insert([profileData]);
+
+      if (insertErr) {
+        return res.status(500).json({ error: `Failed to create profile: ${insertErr.message}` });
+      }
+
+      profile = profileData;
+    } else {
+      profile = prof;
+    }
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  // ─── STEP 4: Check email verification ──────────────────────────
+  if (profile && !profile.verified) {
+    return res.status(403).json({
+      error: 'Please verify your email before logging in. Check your inbox for the verification link.'
+    });
+  }
+
+  return res.json({
+  profile,
+  access_token: data.session?.access_token || null, // ✅ Add this
+  isFallback: false
+});
+}
+
+    if (manualUserId) {
+  // First, verify that this user actually exists in Supabase Auth
+  const { data: authUser, error: authError } = await supabaseServiceClient
+    .auth.admin.getUserById(manualUserId);
+
+  if (authError || !authUser) {
+    // Invalid user – return 401 and let frontend handle it
+    console.warn(`Manual userId ${manualUserId} not found in Auth`);
+    return res.status(401).json({ error: 'Invalid user session. Please log in again.' });
+  }
+
+  // Valid user – now fetch the profile, but DO NOT create one if missing
+  const { data: profile, error: profError } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', manualUserId)
+    .maybeSingle();
+
+  if (profError || !profile) {
+    return res.status(404).json({ error: 'Profile not found. Please complete signup.' });
+  }
+
+  return res.json({ profile, isFallback: false });
+}
+
+    return res.status(400).json({ error: 'Invalid user action' });
+  } catch (err: any) {
+    console.error('Auth endpoint execution failure:', err);
+    return res.status(500).json({ error: err.message || 'Server Auth Failure' });
+  }
+});
+
+
+// here2
+
+
+app.get('/api/verify', async (req, res) => {
+  const { token } = req.query;
+
+  if (!token || typeof token !== 'string') {
+    return res.status(400).send('Invalid verification token.');
+  }
+
+  const record = verificationTokens[token];
+
+  if (!record) {
+    return res.status(400).send('Verification token not found or already used.');
+  }
+
+  if (Date.now() > record.expiresAt) {
+    delete verificationTokens[token];
+    return res.status(400).send('Verification token has expired. Please request a new one.');
+  }
+
+  if (!supabaseServiceClient) {
+    return res.status(500).send('Server error: Supabase service client not initialized.');
+  }
+
+  const { error } = await supabaseServiceClient
+    .from('profiles')
+    .update({ verified: true })
+    .eq('id', record.userId);
+
+  if (error) {
+    console.error('Verification update failed:', error.message);
+    return res.status(500).send('Failed to verify email. Please try again.');
+  }
+
+  delete verificationTokens[token];
+
+  res.send(`
+    <html>
+      <head><title>Email Verified</title></head>
+      <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc;">
+        <div style="background: white; padding: 2.5rem; border-radius: 1rem; text-align: center; max-width: 400px;">
+          <h1 style="color: #0f172a;">✅ Email Verified!</h1>
+          <p style="color: #475569;">Your email has been confirmed. You can now log in to Rewakely.</p>
+          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" style="display: inline-block; background: #1e293b; color: white; padding: 0.75rem 2rem; border-radius: 0.5rem; text-decoration: none; margin-top: 1rem;">Go to Login</a>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
+// here3
+
+// ─── PASSWORD RESET (USING RESEND API DIRECTLY) ──────────────────
+app.post('/api/auth/reset-password-request', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  console.log(`🔴 Password reset requested for: ${email}`);
+
+  try {
+    // 1. Get user from Supabase Auth using listUsers with filter
+    const { data: { users }, error: usersError } = await supabaseServiceClient.auth.admin.listUsers();
+    
+    if (usersError) {
+      console.error('listUsers error:', usersError);
+      return res.status(500).json({ error: 'Failed to lookup user' });
+    }
+
+    const user = users?.find((u: any) => u.email === email);
+
+    if (!user) {
+      console.log('User not found in auth');
+      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
+    }
+
+    console.log(`User found: ${user.id}`);
+
+    // 2. Generate token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    // 3. Save token to password_reset_tokens
+    const { error: tokenError } = await supabaseServiceClient
+      .from('password_reset_tokens')
+      .insert([{
+        user_id: user.id,
+        token,
+        expires_at: expiresAt.toISOString(),
+        used: false
+      }]);
+
+    if (tokenError) {
+      console.error('Token save error:', tokenError);
+      return res.status(500).json({ error: 'Failed to generate reset link' });
+    }
+
+    // 4. Send email via Resend API
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
+    const result = await sendPasswordResetEmail(email, resetLink);
+
+    if (!result.success) {
+      console.error('Email send failed:', result.error);
+      return res.status(500).json({ error: 'Failed to send reset email' });
+    }
+
+    console.log(`✅ Password reset email sent to ${email}`);
+    res.json({ success: true, message: 'Password reset link sent to your email.' });
+
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    // Verify the token
+    const { data: tokenData, error: tokenError } = await supabaseServiceClient
+      .from('password_reset_tokens')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (tokenError || !tokenData) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Update the user's password
+    const { error: updateError } = await supabaseServiceClient.auth.admin.updateUserById(
+      tokenData.user_id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('Password update error:', updateError);
+      return res.status(500).json({ error: 'Failed to update password' });
+    }
+
+    // Mark token as used
+    await supabaseServiceClient
+      .from('password_reset_tokens')
+      .update({ used: true })
+      .eq('token', token);
+
+    res.json({ success: true, message: 'Password updated successfully!' });
+
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.get('/api/health-check', async (req, res) => {
+  const isSupabaseConfigured = !!supabaseClient;
+  const isGeminiConfigured = !!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('MY_GEMINI_API_KEY');
+  const isStripeConfigured = !!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('placeholder') && !process.env.STRIPE_SECRET_KEY.startsWith('sk_test_your');
+  const isTwilioConfigured = !!process.env.TWILIO_ACCOUNT_SID && !process.env.TWILIO_ACCOUNT_SID.includes('your_sid');
+
+  res.json({
+    supabase: isSupabaseConfigured ? 'connected' : 'missing_or_invalid',
+    gemini: isGeminiConfigured ? 'ready' : 'missing_key',
+    stripe: isStripeConfigured ? 'ready' : 'missing_key',
+    twilio: isTwilioConfigured ? 'ready' : 'missing_key',
+    database_fallback: isSupabaseConfigured ? 'inactive' : 'active_local_fallback'
+  });
+});
+
+
+// here6
+
+
+// -------------------- API ENDPOINTS --------------------
+app.get('/api/test-email', async (req, res) => {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: 'contact@rewakely.com',
+      to: 'giurexsanjuve2010@gmail.com',
+      subject: 'Test from backend',
+      html: '<strong>Test email from server.ts</strong>',
+    });
+
+    res.json({ success: true, messageId: info.messageId });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
+
+//here7
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADD THIS ENDPOINT TO YOUR server.ts
+// Requires: getGeminiClient() to be set up already in your project.
+// ─────────────────────────────────────────────────────────────────────────────
+
+app.post("/api/sms/parse-customers", async (req, res) => {
+  const { rawText } = req.body;
+
+  if (!rawText || typeof rawText !== "string" || !rawText.trim()) {
+    return res.status(400).json({ error: "No text provided" });
+  }
+
+  try {
+    const client = getGeminiClient();
+
+    if (!client) {
+      console.error("Gemini client is null – check GEMINI_API_KEY");
+      return res.status(503).json({ 
+        error: "AI service is unavailable. Please check your Gemini API key configuration." 
+      });
+    }
+
+    const prompt = `
+You are a data extraction assistant. Extract customer information from the following text.
+
+Extract:
+- customer_name (full name, string)
+- phone_number (normalize to E.164 format: +1XXXXXXXXXX for US numbers, e.g. +15551234567)
+- email (email address, string – if available)
+- visit_date (normalize to YYYY-MM-DD format, e.g. 2026-06-20)
+
+Rules:
+- Return ONLY a valid JSON array of objects with exactly these four fields.
+- If a field cannot be found, use null for that field.
+- Do NOT include any explanation, markdown, or text outside the JSON array.
+
+Text to parse:
+"""
+${rawText}
+"""
+`.trim();
+
+    console.log("📤 Sending prompt to Gemini...");
+
+    // ✅ EXACTLY THE SAME PATTERN AS THE WORKING generateGeminiReply FUNCTION
+    const response = await client.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.1,
+      },
+    });
+
+    const rawJson = response.text?.trim() ?? "[]";
+
+    // Clean markdown code fences
+    const cleaned = rawJson
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+
+    let customers: Array<{
+  customer_name: string | null;
+  phone_number: string | null;
+  email: string | null;        // ✅ ADD THIS
+  visit_date: string | null;
+}>;
+
+    try {
+      customers = JSON.parse(cleaned);
+      console.log(`✅ Parsed ${customers.length} customers successfully`);
+    } catch {
+      console.error("Failed to parse AI response as JSON:", cleaned);
+      return res.status(500).json({ error: "AI returned invalid JSON" });
+    }
+
+    // ─── POST-PROCESS: Fix mis-parsed emails ──────────────────────
+const sanitised = customers.map((c) => {
+  // If phone_number looks like an email (contains @) and email is null, move it to email
+  if (c.phone_number && c.phone_number.includes('@') && !c.email) {
+    console.log(`🔧 Fixing mis-parsed email: "${c.phone_number}" → moving to email field`);
+    c.email = c.phone_number;
+    c.phone_number = null;
+  }
+
+  return {
+    customer_name: c.customer_name ?? null,
+    phone_number: c.phone_number ?? null,
+    email: c.email ?? null,
+    visit_date: c.visit_date ?? null,
+  };
+});
+
+    return res.json({ customers: sanitised });
+  } catch (err: unknown) {
+  const message = err instanceof Error ? err.message : "Unknown error";
+  console.error("❌ AI parsing error:", message);
+  // Return a 500 error, no sample data
+  return res.status(500).json({ error: "Failed to parse customers. Please check your input or try again." });
+}
+});
+
+
+// server.ts – replace the existing /api/feedback/submit route
+
+app.post('/api/feedback/submit', async (req, res) => {
+  const { 
+    business_name, 
+    rating, 
+    customer_ip: clientIp, 
+    place_id, 
+    customer_name,
+    business_id   // <-- NEW: the business owner's user ID from the QR URL
+  } = req.body;
+
+  if (!business_name || rating === undefined || rating === null) {
+    return res.status(400).json({ error: 'business_name and rating are required' });
+  }
+
+  // ─── Normalize the customer name ONCE at the top ────────────────
+  const rawCustomerName = (customer_name || '').trim();
+  const normalizedName = rawCustomerName
+    .toLowerCase()
+    .replace(/\s+/g, ' '); // collapse multiple spaces
+
+  const determinedIp = clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const finalIp = Array.isArray(determinedIp) ? determinedIp[0] : determinedIp;
+
+  // ── DETERMINE USER ID ──────────────────────────────────────────
+  let userId = null;
+
+  // 1. Use the provided business_id directly (from QR code)
+  if (business_id) {
+    userId = business_id;
+  } 
+  // 2. Fallback: look up by place_id (for backwards compatibility)
+  else if (place_id && supabaseServiceClient) {
+    try {
+      const { data: profile } = await supabaseServiceClient
+        .from('profiles')
+        .select('id')
+        .eq('place_id', place_id)
+        .maybeSingle();
+      if (profile) userId = profile.id;
+    } catch (err) {
+      console.warn('Error looking up place_id:', err);
+    }
+  }
+
+  // ── DUPLICATE CHECK using normalizedName (already defined) ──
+  if (userId && rawCustomerName) {
+    const { data: existing, error: checkError } = await supabaseServiceClient
+      .from('feedback_submissions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('customer_name_normalized', normalizedName) // ✅ Case-insensitive check
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Duplicate check error:', checkError);
+    }
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: 'already_reviewed',
+        message: `You've already shared your feedback with ${business_name}. Thank you for your support!`
+      });
+    }
+  }
+
+  // ── SAVE TO DATABASE ──────────────────────────────────────────
+  let insertedRecord = null;
+  let savedToDb = false;
+
+  if (supabaseServiceClient) {
+    try {
+      const insertData: any = {
+        business_name,
+        rating: parseInt(rating, 10),
+        customer_ip: finalIp,
+        created_at: new Date().toISOString(),
+        customer_name: rawCustomerName,              // ✅ store original (trimmed)
+        customer_name_normalized: normalizedName,    // ✅ store normalized
+      };
+
+      if (userId) insertData.user_id = userId;
+      // ✅ No need to set customer_name again – it's already in the object
+
+      const { data, error } = await supabaseServiceClient
+        .from('feedback_submissions')
+        .insert([insertData])
+        .select();
+
+      if (!error && data && data.length > 0) {
+        insertedRecord = data[0];
+        savedToDb = true;
+      } else {
+        // If unique violation, return friendly error
+        if (error?.code === '23505') {
+          return res.status(409).json({
+            success: false,
+            error: 'already_reviewed',
+            message: `You've already shared your feedback with ${business_name}. Thank you!`
+          });
+        }
+        return res.status(500).json({ error: error?.message || 'Failed to save feedback' });
+      }
+    } catch (err: any) {
+      console.warn('Supabase insert error:', err.message);
+      if (err.code === '23505') {
+        return res.status(409).json({
+          success: false,
+          error: 'already_reviewed',
+          message: `You've already shared your feedback with ${business_name}. Thank you!`
+        });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // ── FALLBACK (if Supabase isn't available) ──────────────────
+  if (!savedToDb) {
+    insertedRecord = {
+      id: `local_fallback_${Math.random().toString(36).substring(2, 11)}`,
+      business_name,
+      rating: parseInt(rating, 10),
+      customer_ip: finalIp,
+      user_id: userId,
+      customer_name: rawCustomerName || null,        // ✅ use rawCustomerName
+      customer_name_normalized: normalizedName || null, // ✅ include normalized
+      created_at: new Date().toISOString()
+    };
+  }
+
+  res.json({ success: true, submission: insertedRecord, savedToDb });
+});
+
+
+//here9
+
+
+
+// server.ts – replace the existing /api/business/:id
+
+app.get('/api/business/:id', async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Business ID is required' });
+  }
+
+  try {
+    // First, get the profile
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('business_name, place_id, contact_email')
+      .eq('id', id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') {
+      throw profileError;
+    }
+
+    let business_name = profile?.business_name || null;
+    let contact_email = profile?.contact_email || null;
+    let place_id = profile?.place_id || null;
+
+    // If place_id is missing, try to get it from google_tokens
+    if (!place_id && supabaseServiceClient) {
+      const { data: token } = await supabaseServiceClient
+        .from('google_tokens')
+        .select('location_id')
+        .eq('user_id', id)
+        .maybeSingle();
+      if (token?.location_id) {
+        place_id = token.location_id;
+        // Optionally, update the profile for future use
+        await supabaseServiceClient
+          .from('profiles')
+          .update({ place_id: place_id })
+          .eq('id', id);
+      }
+    }
+
+    if (!business_name) {
+      return res.status(404).json({ error: 'Business not found' });
+    }
+
+    res.json({
+      business_name,
+      place_id,
+      contact_email,
+    });
+  } catch (err) {
+    console.error('Error fetching business:', err);
+    res.status(500).json({ error: 'Failed to fetch business' });
+  }
+});
+
+
+
+
+// Fetch feedback submissions for a business owner
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Name, email, and message are required fields.' });
+  }
+
+  if (!email.includes('@') || !email.includes('.')) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  let insertedRecord = null;
+  let savedToDb = false;
+
+  if (supabaseServiceClient) {
+    try {
+      const { data, error } = await supabaseServiceClient
+        .from('contact_messages')
+        .insert([{
+          name,
+          email,
+          message,
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (!error && data && data.length > 0) {
+        insertedRecord = data[0];
+        savedToDb = true;
+      } else {
+        console.warn('Supabase contact message insert warning:', error.message);
+        return res.status(500).json({ error: `Save failed: ${error.message}` });
+      }
+    } catch (err: any) {
+      console.warn('Supabase contact_messages insert fail:', err.message);
+      return res.status(500).json({ error: `Server error while saving message: ${err.message}` });
+    }
+  } else {
+    console.warn('Supabase service client not initialized during contact submission.');
+    insertedRecord = {
+      id: `local_fallback_${Math.random().toString(36).substring(2, 11)}`,
+      name,
+      email,
+      message,
+      created_at: new Date().toISOString()
+    };
+    savedToDb = false;
+    return res.json({ success: true, submission: insertedRecord, savedToDb });
+  }
+
+  // ─── SEND AUTO-REPLY WITH CALENDLY LINK ──────────────────────────
+  try {
+    const autoReplyHtml = `
+      <h1>Thanks for reaching out, ${name}!</h1>
+      <p>I'm Thomas, founder of Rewakely. I'd love to show you how we can help your business.</p>
+      <p><strong>Book a quick demo here:</strong></p>
+      <p><a href="https://calendly.com/rewakely/15min" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">📅 Book a Demo</a></p>
+      <p>Or feel free to reply to this email directly.</p>
+      <p>Looking forward to connecting!</p>
+      <p>– Thomas<br>Founder, Rewakely</p>
+    `;
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Thomas <thomas@rewakely.com>',
+        to: [email],
+        subject: `Thanks for reaching out, ${name}!`,
+        html: autoReplyHtml,
+      }),
+    });
+
+    console.log(`✅ Auto-reply sent to ${email}`);
+  } catch (err: any) {
+    console.warn('Failed to send auto-reply email:', err.message);
+    // Don't fail the request – just log the error
+  }
+
+  res.json({ success: true, submission: insertedRecord, savedToDb });
+});
+
+// ─── WAITLIST ENDPOINT ──────────────────────────────────────────────
+
+app.post('/api/waitlist', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  try {
+    // Check if already on waitlist
+    const { data: existing } = await supabaseServiceClient
+      .from('premium_waitlist')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existing) {
+      return res.json({ success: true, message: 'Already on waitlist' });
+    }
+
+    // Add to waitlist
+    await supabaseServiceClient
+      .from('premium_waitlist')
+      .insert([{
+        email: email.trim(),
+        created_at: new Date().toISOString(),
+      }]);
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Waitlist error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+//here10
+
+
+// ===== DEMO SIGNUP ENDPOINT =====
+app.post('/api/demo-signup', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Valid email is required' });
+  }
+
+  try {
+    // Save to Supabase (create the 'demo_signups' table first!)
+    const { error } = await supabaseServiceClient
+      .from('demo_signups')
+      .insert([{ email, created_at: new Date().toISOString() }]);
+
+    if (error) {
+      console.error('Demo signup error:', error);
+      return res.status(500).json({ error: 'Failed to save email' });
+    }
+
+    // ✅ Optional: Send a welcome email with the video link
+    // (We'll add this later if needed)
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo signup server error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+//here11
+
+// ===== TRACK DEMO VIEWS =====
+app.post('/api/track-demo-view', async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+  try {
+    await supabaseServiceClient
+      .from('demo_views') // ✅ Create this table first!
+      .insert([{ email, viewed_at: new Date().toISOString() }]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo view tracking error:', err);
+    res.status(500).json({ error: 'Failed to track view' });
+  }
+});
+
+
+// ===== LOG DEMO VIDEO EVENTS =====
+app.post('/api/log-demo-event', async (req, res) => {
+  const { email, event, watch_percentage } = req.body;
+
+  if (!email || !event) {
+    return res.status(400).json({ error: 'Email and event are required' });
+  }
+
+  try {
+    // Determine if the user watched the video based on the event
+    const watched = event === 'ended' || watch_percentage >= 90;
+
+    // Save to Supabase
+    const { error } = await supabaseServiceClient
+      .from('demo_analytics')
+      .insert([{
+        email,
+        watched,
+        watch_percentage,
+        created_at: new Date().toISOString()
+      }]);
+
+    if (error) {
+      console.error('Demo analytics error:', error);
+      return res.status(500).json({ error: 'Failed to log event' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Demo analytics server error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+//here13
+
+// ─── EMAIL TRACKING (1x1 pixel) ────────────────────────────────────
+
+app.get('/api/email/track', async (req, res) => {
+  const { id } = req.query;
+
+  if (id) {
+    try {
+      // Update the scheduled_customers record to mark as opened
+      await supabaseServiceClient
+        .from('scheduled_customers')
+        .update({ opened_at: new Date().toISOString() })
+        .eq('id', id);
+    } catch (err) {
+      console.warn('Failed to update open tracking:', err);
+    }
+  }
+
+  // Return a transparent 1x1 GIF
+  res.setHeader('Content-Type', 'image/gif');
+  // Base64 of a transparent GIF
+  const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+  res.send(pixel);
+});
+
+//here14
+
+
+// ─── TOKEN REDIRECT ROUTE ──────────────────────────────────────
+app.get('/r/:token', async (req, res) => {
+  const { token } = req.params;
+
+  if (!token) {
+    return res.status(400).send('Invalid review link.');
+  }
+
+  try {
+    // Look up the token in the database
+    const { data, error } = await supabaseServiceClient
+      .from('review_tokens')
+      .select('*')
+      .eq('token', token)
+      .gt('expires_at', new Date().toISOString())
+      .eq('used', false)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.warn(`Invalid or expired token: ${token}`);
+      return res.status(404).send(`
+        <html>
+          <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0;">
+            <div style="background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px;">
+              <h2>🔗 Link Expired or Invalid</h2>
+              <p style="color: #64748b;">This review link is no longer valid. Please contact the business directly.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+
+    // ✅ Mark as used (prevents reuse – optional, but good security)
+    // Comment this out if you want the link to work multiple times
+    // await supabaseServiceClient
+    //   .from('review_tokens')
+    //   .update({ used: true })
+    //   .eq('token', token);
+
+    // Redirect to the actual review page with all the data
+    const redirectUrl = `/review?business=${encodeURIComponent(data.business_name)}&placeId=${encodeURIComponent(data.place_id)}&email=${encodeURIComponent(data.contact_email)}&customerName=${encodeURIComponent(data.customer_name)}`;
+    res.redirect(redirectUrl);
+
+  } catch (err) {
+    console.error('Token redirect error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+
+//here15
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const { code, state: userId } = req.query;
+
+  if (!code || !userId) {
+    return res.status(400).send('Google OAuth callback failed: Missing authorize code or state userId.');
+  }
+
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
+  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
+
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code: code as string,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      }).toString()
+    });
+
+    const tokens = await tokenRes.json();
+    if (!tokenRes.ok || !tokens.access_token) {
+      console.error('Exchange Google code failed:', tokens);
+      return res.status(400).send(`Token exchange error: ${tokens.error_description || 'Unknown Google error'}`);
+    }
+
+    const { access_token, refresh_token, expires_in } = tokens;
+    const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000).toISOString();
+
+    let finalRefreshToken = refresh_token;
+    if (!finalRefreshToken && supabaseServiceClient) {
+      try {
+        const { data: existing } = await supabaseServiceClient
+          .from('google_tokens')
+          .select('refresh_token')
+          .eq('user_id', userId as string)
+          .maybeSingle();
+        if (existing?.refresh_token) {
+          finalRefreshToken = existing.refresh_token;
+        }
+      } catch (eToken) {
+        console.warn('Could not read existing tokens:', eToken);
+      }
+    }
+
+    if (!finalRefreshToken) {
+      finalRefreshToken = 'rt_gmb_sandbox_fallback_858';
+    }
+
+    let accountId = 'acc_gmb_default_999';
+    let locationId = 'loc_gmb_default_718';
+
+    try {
+      const accountsRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
+        headers: { 'Authorization': `Bearer ${access_token}` }
+      });
+      if (accountsRes.ok) {
+        const accountsData = await accountsRes.json();
+        if (accountsData.accounts && accountsData.accounts.length > 0) {
+          accountId = accountsData.accounts[0].name.split('/').pop() || 'acc_gmb_default_999';
+          const locationsRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations`, {
+            headers: { 'Authorization': `Bearer ${access_token}` }
+          });
+          if (locationsRes.ok) {
+            const locationsData = await locationsRes.json();
+            if (locationsData.locations && locationsData.locations.length > 0) {
+              locationId = locationsData.locations[0].name.split('/').pop() || 'loc_gmb_default_718';
+            }
+          }
+        }
+      }
+    } catch (gErr) {
+      console.warn('GMB fetch account metadata warning:', gErr);
+    }
+
+    if (!supabaseServiceClient) {
+      throw new Error('Supabase client unavailable.');
+    }
+
+    const { error: upsertErr } = await supabaseServiceClient
+      .from('google_tokens')
+      .upsert({
+        user_id: userId as string,
+        access_token,
+        refresh_token: finalRefreshToken,
+        expires_at: expiresAt,
+        location_id: locationId,
+        account_id: accountId,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (upsertErr) {
+      console.error('Google tokens database upsert failed:', upsertErr.message);
+    }
+
+    res.send(`
+      <html>
+        <head>
+          <title>Google GMB Connected Successfully</title>
+        </head>
+        <body style="font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8fafc; color: #1e293b;">
+          <div style="background-color: white; padding: 2.5rem; border-radius: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; margin: 15px;">
+            <div style="width: 4rem; height: 4rem; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a;">Google My Business Connected!</h2>
+            <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 1.5rem;">
+               Your active Google Reviews location has been authenticated and linked securely to your main dashboard profile!
+            </p>
+            <p style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">
+              This popup window will close automatically...
+            </p>
+          </div>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+              setTimeout(() => {
+                window.close();
+              }, 1500);
+            } else {
+              window.location.href = '/#currentRoute=dashboardAutopilot';
+            }
+          </script>
+        </body>
+      </html>
+    `);
+
+  } catch (err: any) {
+    console.error('Google callback code exchange failed:', err);
+    res.status(500).send(`GMB Authentication error: ${err.message}`);
+  }
+});
+
+
+
+
+
+app.use('/api/', authenticate);
+
+
+
+
+
+
+
+
 // Apply to all API routes
 app.use('/api/', limiter);
 
@@ -296,7 +1465,7 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true, // Allow cookies/auth headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'] // ✅ Keep for backward compat (though we're phasing out x-user-id)
+  allowedHeaders: ['Content-Type', 'Authorization'] // ✅ Keep for backward compat (though we're phasing out x-user-id)
 }));
 
 // Security headers (you already have these)
@@ -857,364 +2026,16 @@ async function sendWelcomeEmail(email: string, businessName: string) {
 
 
 
-// ─── PASSWORD RESET (USING RESEND API DIRECTLY) ──────────────────
-app.post('/api/auth/reset-password-request', async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-
-  console.log(`🔴 Password reset requested for: ${email}`);
-
-  try {
-    // 1. Get user from Supabase Auth using listUsers with filter
-    const { data: { users }, error: usersError } = await supabaseServiceClient.auth.admin.listUsers();
-    
-    if (usersError) {
-      console.error('listUsers error:', usersError);
-      return res.status(500).json({ error: 'Failed to lookup user' });
-    }
-
-    const user = users?.find((u: any) => u.email === email);
-
-    if (!user) {
-      console.log('User not found in auth');
-      return res.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
-    }
-
-    console.log(`User found: ${user.id}`);
-
-    // 2. Generate token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
-    // 3. Save token to password_reset_tokens
-    const { error: tokenError } = await supabaseServiceClient
-      .from('password_reset_tokens')
-      .insert([{
-        user_id: user.id,
-        token,
-        expires_at: expiresAt.toISOString(),
-        used: false
-      }]);
-
-    if (tokenError) {
-      console.error('Token save error:', tokenError);
-      return res.status(500).json({ error: 'Failed to generate reset link' });
-    }
-
-    // 4. Send email via Resend API
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
-    const result = await sendPasswordResetEmail(email, resetLink);
-
-    if (!result.success) {
-      console.error('Email send failed:', result.error);
-      return res.status(500).json({ error: 'Failed to send reset email' });
-    }
-
-    console.log(`✅ Password reset email sent to ${email}`);
-    res.json({ success: true, message: 'Password reset link sent to your email.' });
-
-  } catch (err: any) {
-    console.error('Password reset error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 2. Reset password with token
-app.post('/api/auth/reset-password', async (req, res) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res.status(400).json({ error: 'Token and new password are required' });
-  }
-
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
-  }
-
-  try {
-    // Verify the token
-    const { data: tokenData, error: tokenError } = await supabaseServiceClient
-      .from('password_reset_tokens')
-      .select('*')
-      .eq('token', token)
-      .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
-      .single();
-
-    if (tokenError || !tokenData) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    // Update the user's password
-    const { error: updateError } = await supabaseServiceClient.auth.admin.updateUserById(
-      tokenData.user_id,
-      { password: newPassword }
-    );
-
-    if (updateError) {
-      console.error('Password update error:', updateError);
-      return res.status(500).json({ error: 'Failed to update password' });
-    }
-
-    // Mark token as used
-    await supabaseServiceClient
-      .from('password_reset_tokens')
-      .update({ used: true })
-      .eq('token', token);
-
-    res.json({ success: true, message: 'Password updated successfully!' });
-
-  } catch (err: any) {
-    console.error('Password reset error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 
 
-// -------------------- API ENDPOINTS --------------------
-app.get('/api/test-email', async (req, res) => {
-  try {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY,
-      },
-    });
 
-    const info = await transporter.sendMail({
-      from: 'contact@rewakely.com',
-      to: 'giurexsanjuve2010@gmail.com',
-      subject: 'Test from backend',
-      html: '<strong>Test email from server.ts</strong>',
-    });
 
-    res.json({ success: true, messageId: info.messageId });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message, stack: error.stack });
-  }
-});
 
-app.get('/api/health-check', async (req, res) => {
-  const isSupabaseConfigured = !!supabaseClient;
-  const isGeminiConfigured = !!process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes('MY_GEMINI_API_KEY');
-  const isStripeConfigured = !!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('placeholder') && !process.env.STRIPE_SECRET_KEY.startsWith('sk_test_your');
-  const isTwilioConfigured = !!process.env.TWILIO_ACCOUNT_SID && !process.env.TWILIO_ACCOUNT_SID.includes('your_sid');
 
-  res.json({
-    supabase: isSupabaseConfigured ? 'connected' : 'missing_or_invalid',
-    gemini: isGeminiConfigured ? 'ready' : 'missing_key',
-    stripe: isStripeConfigured ? 'ready' : 'missing_key',
-    twilio: isTwilioConfigured ? 'ready' : 'missing_key',
-    database_fallback: isSupabaseConfigured ? 'inactive' : 'active_local_fallback'
-  });
-});
 
-app.post('/api/user/auth', async (req, res) => {
-  const { email, password, businessName, action, manualUserId } = req.body;
 
-  if (!supabaseClient) {
-    return res.status(500).json({ error: 'Supabase client is not initialized or credentials are missing.' });
-  }
 
-  try {
-    if (action === 'signup') {
-      if (!email || !password || !businessName) {
-        return res.status(400).json({ error: 'Email, password, and business name are required' });
-      }
-
-      const { data, error } = await supabaseClient.auth.signUp({
-        email,
-        password
-      });
-
-      if (error) {
-        return res.status(400).json({ error: `Verification email dispatch failed. Error: ${error.message}` });
-      }
-
-      if (!data.user) {
-        return res.status(400).json({ error: 'Signup failed - No user object returned.' });
-      }
-
-      const userId = data.user.id;
-      const profileData = {
-        id: userId,
-        email: email,
-        business_name: businessName || 'My Business',
-        industry: 'Other',
-        tone: 'Friendly',
-        subscription_status: 'inactive',
-        subscription_plan: 'pro',
-        onboarded: true,
-        tour_completed: false,
-        verified: false,
-        created_at: new Date().toISOString()
-      };
-
-      const { error: insertErr } = await (supabaseServiceClient || supabaseClient)
-        .from('profiles')
-        .insert([profileData]);
-
-      if (insertErr) {
-        console.error('Failed to create profile row with service level client:', insertErr.message);
-        return res.status(500).json({ error: `User created but profile initialization failed: ${insertErr.message}` });
-      }
-
-      // Send verification email (always)
-      sendVerificationEmail(email, userId, businessName || 'My Business')
-        .then(result => {
-          if (result.success) {
-            console.log(`Verification email sent to ${email}`);
-          } else {
-            console.error(`Verification email failed for ${email}:`, result.error);
-          }
-        })
-        .catch(err => console.error('Email send error:', err));
-
-      // Always require verification, do NOT log the user in
-      return res.json({
-        profile: null,
-        verificationRequired: true,
-        message: 'Verification email sent. Please check your inbox.',
-        isFallback: false
-      });
-    }
-
-    if (action === 'signin') {
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
-
-  // ─── STEP 1: Authenticate with Supabase Auth ──────────────────
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-     console.log(`[AUTH] Failed signup for ${email}: ${error.message}`);
-    return res.status(401).json({ error: error.message });
-  }
-
-  console.log(`[AUTH] Successful login for ${email} (User ID: ${data.user.id})`);
-
-  if (!data.user) {
-    return res.status(401).json({ error: 'Login failed - No user object returned.' });
-  }
-
-  const userId = data.user.id;
-  const userEmail = data.user.email; // ✅ This comes from Auth, not the request
-
-  // ─── STEP 2: Verify the user exists in Auth (extra safety) ──
-  try {
-    const { data: authUser, error: authError } = await supabaseServiceClient
-      .auth.admin.getUserById(userId);
-    if (authError || !authUser) {
-      console.warn(`Auth user ${userId} not found:`, authError);
-      return res.status(401).json({ error: 'User session invalid. Please log in again.' });
-    }
-  } catch (authErr: any) {
-    console.error('Auth verification error:', authErr);
-    return res.status(500).json({ error: 'Authentication service error.' });
-  }
-
-  // ─── STEP 3: Get or create profile ──────────────────────────────
-  let profile;
-  try {
-    const { data: prof, error: getErr } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (getErr) {
-      return res.status(500).json({ error: `Failed to fetch profile: ${getErr.message}` });
-    }
-
-    if (!prof) {
-      // ✅ Only create profile if the user is authenticated (we already verified)
-      const businessName = req.body.businessName || 'My Business';
-      const profileData = {
-        id: userId,
-        email: userEmail, // Use email from Auth, not from request (more reliable)
-        business_name: businessName,
-        industry: 'Other',
-        tone: 'Friendly',
-        subscription_status: 'inactive',
-        subscription_plan: 'pro',
-        onboarded: true,
-        tour_completed: false,
-        verified: false,
-        created_at: new Date().toISOString()
-      };
-
-      const { error: insertErr } = await (supabaseServiceClient || supabaseClient)
-        .from('profiles')
-        .insert([profileData]);
-
-      if (insertErr) {
-        return res.status(500).json({ error: `Failed to create profile: ${insertErr.message}` });
-      }
-
-      profile = profileData;
-    } else {
-      profile = prof;
-    }
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
-
-  // ─── STEP 4: Check email verification ──────────────────────────
-  if (profile && !profile.verified) {
-    return res.status(403).json({
-      error: 'Please verify your email before logging in. Check your inbox for the verification link.'
-    });
-  }
-
-  return res.json({
-  profile,
-  access_token: data.session?.access_token || null, // ✅ Add this
-  isFallback: false
-});
-}
-
-    if (manualUserId) {
-  // First, verify that this user actually exists in Supabase Auth
-  const { data: authUser, error: authError } = await supabaseServiceClient
-    .auth.admin.getUserById(manualUserId);
-
-  if (authError || !authUser) {
-    // Invalid user – return 401 and let frontend handle it
-    console.warn(`Manual userId ${manualUserId} not found in Auth`);
-    return res.status(401).json({ error: 'Invalid user session. Please log in again.' });
-  }
-
-  // Valid user – now fetch the profile, but DO NOT create one if missing
-  const { data: profile, error: profError } = await supabaseClient
-    .from('profiles')
-    .select('*')
-    .eq('id', manualUserId)
-    .maybeSingle();
-
-  if (profError || !profile) {
-    return res.status(404).json({ error: 'Profile not found. Please complete signup.' });
-  }
-
-  return res.json({ profile, isFallback: false });
-}
-
-    return res.status(400).json({ error: 'Invalid user action' });
-  } catch (err: any) {
-    console.error('Auth endpoint execution failure:', err);
-    return res.status(500).json({ error: err.message || 'Server Auth Failure' });
-  }
-});
 
 
 // ─── ZAPIER WEBHOOK ENDPOINT ──────────────────────────────────
@@ -1304,89 +2125,9 @@ app.get('/api/zapier/verify', async (req, res) => {
   }
 });
 
-// ─── WAITLIST ENDPOINT ──────────────────────────────────────────────
 
-app.post('/api/waitlist', async (req, res) => {
-  const { email } = req.body;
 
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email is required' });
-  }
 
-  try {
-    // Check if already on waitlist
-    const { data: existing } = await supabaseServiceClient
-      .from('premium_waitlist')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (existing) {
-      return res.json({ success: true, message: 'Already on waitlist' });
-    }
-
-    // Add to waitlist
-    await supabaseServiceClient
-      .from('premium_waitlist')
-      .insert([{
-        email: email.trim(),
-        created_at: new Date().toISOString(),
-      }]);
-
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error('Waitlist error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/verify', async (req, res) => {
-  const { token } = req.query;
-
-  if (!token || typeof token !== 'string') {
-    return res.status(400).send('Invalid verification token.');
-  }
-
-  const record = verificationTokens[token];
-
-  if (!record) {
-    return res.status(400).send('Verification token not found or already used.');
-  }
-
-  if (Date.now() > record.expiresAt) {
-    delete verificationTokens[token];
-    return res.status(400).send('Verification token has expired. Please request a new one.');
-  }
-
-  if (!supabaseServiceClient) {
-    return res.status(500).send('Server error: Supabase service client not initialized.');
-  }
-
-  const { error } = await supabaseServiceClient
-    .from('profiles')
-    .update({ verified: true })
-    .eq('id', record.userId);
-
-  if (error) {
-    console.error('Verification update failed:', error.message);
-    return res.status(500).send('Failed to verify email. Please try again.');
-  }
-
-  delete verificationTokens[token];
-
-  res.send(`
-    <html>
-      <head><title>Email Verified</title></head>
-      <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc;">
-        <div style="background: white; padding: 2.5rem; border-radius: 1rem; text-align: center; max-width: 400px;">
-          <h1 style="color: #0f172a;">✅ Email Verified!</h1>
-          <p style="color: #475569;">Your email has been confirmed. You can now log in to Rewakely.</p>
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/signin" style="display: inline-block; background: #1e293b; color: white; padding: 0.75rem 2rem; border-radius: 0.5rem; text-decoration: none; margin-top: 1rem;">Go to Login</a>
-        </div>
-      </body>
-    </html>
-  `);
-});
 
 // ─── SEND PASSWORD RESET EMAIL ──────────────────────────────────
 async function sendPasswordResetEmail(email: string, resetLink: string): Promise<{ success: boolean; error?: string }> {
@@ -1442,7 +2183,7 @@ app.post('/api/user/onboarding', async (req, res) => {
   res.json({ profile, isFallback });
 });
 
-app.post('/api/user/profile', authenticate, async (req, res) => {
+app.post('/api/user/profile', async (req, res) => {
   const userId = req.userId;
   const { business_name, industry, tone, contact_email, tour_completed } = req.body;
 
@@ -1457,20 +2198,20 @@ app.post('/api/user/profile', authenticate, async (req, res) => {
   res.json({ profile, isFallback });
 });
 
-app.post('/api/user/tour-complete', authenticate, async (req, res) => {
+app.post('/api/user/tour-complete', async (req, res) => {
   const userId = req.userId;
 
   const { data: profile, isFallback } = await updateProfile(userId, { tour_completed: true });
   res.json({ profile, isFallback });
 });
 
-app.get('/api/reviews', authenticate, async (req, res) => {
+app.get('/api/reviews', async (req, res) => {
   const userId = req.userId;
   const { data: reviews, isFallback } = await getReviews(userId);
   res.json({ reviews, isFallback });
 });
 
-app.post('/api/reviews/import', authenticate, async (req, res) => {
+app.post('/api/reviews/import', async (req, res) => {
   const userId = req.userId;
   const { customerName, rating, comment, source } = req.body;
 
@@ -1500,7 +2241,7 @@ app.post('/api/reviews/import', authenticate, async (req, res) => {
   res.json({ review: inserted, isFallback });
 });
 
-app.post('/api/reviews/reply', authenticate, async (req, res) => {
+app.post('/api/reviews/reply', async (req, res) => {
   const userId = req.userId;
   const { reviewId, replyText } = req.body;
 
@@ -1547,7 +2288,8 @@ if (reviewSource === 'google' && supabaseServiceClient) {
 
 
 app.post('/api/reviews/generate', async (req, res) => {
-  const { reviewText, rating, businessName, industry, tone, userId } = req.body;
+   const { reviewText, rating, businessName, industry, tone } = req.body;
+  const userId = req.userId; 
 
   if (!reviewText) {
     return res.status(400).json({ error: 'reviewText is required' });
@@ -1623,7 +2365,7 @@ Tone should be: ${tone || 'Professional & Direct'}`;
 // ===== DELETE REVIEW ENDPOINTS =====
 
 // Clear all reviews for a user – MUST come BEFORE the single delete
-app.delete('/api/reviews/clear', authenticate, async (req, res) => {
+app.delete('/api/reviews/clear', async (req, res) => {
   const userId = req.userId;
 
   if (!userId) {
@@ -1658,7 +2400,7 @@ app.delete('/api/reviews/clear', authenticate, async (req, res) => {
 });
 
 // Delete a single review – must come AFTER the clear endpoint
-app.delete('/api/reviews/:reviewId', authenticate, async (req, res) => {
+app.delete('/api/reviews/:reviewId', async (req, res) => {
   const userId = req.userId;
   const { reviewId } = req.params;
 
@@ -1713,7 +2455,7 @@ app.delete('/api/reviews/:reviewId', authenticate, async (req, res) => {
 
 
 
-app.get('/api/sms/invites', authenticate, async (req, res) => {
+app.get('/api/sms/invites', async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
@@ -1724,7 +2466,7 @@ app.get('/api/sms/invites', authenticate, async (req, res) => {
 
 
 
-app.post('/api/sms/send-invite', authenticate, requirePlan('premium'), async (req, res) => {
+app.post('/api/sms/send-invite', requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { customerName, phoneNumber } = req.body;
 
@@ -1878,107 +2620,6 @@ const customMessage = `Hi ${customerName}, ${business} values your feedback. Ple
 
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADD THIS ENDPOINT TO YOUR server.ts
-// Requires: getGeminiClient() to be set up already in your project.
-// ─────────────────────────────────────────────────────────────────────────────
-
-app.post("/api/sms/parse-customers", async (req, res) => {
-  const { rawText } = req.body;
-
-  if (!rawText || typeof rawText !== "string" || !rawText.trim()) {
-    return res.status(400).json({ error: "No text provided" });
-  }
-
-  try {
-    const client = getGeminiClient();
-
-    if (!client) {
-      console.error("Gemini client is null – check GEMINI_API_KEY");
-      return res.status(503).json({ 
-        error: "AI service is unavailable. Please check your Gemini API key configuration." 
-      });
-    }
-
-    const prompt = `
-You are a data extraction assistant. Extract customer information from the following text.
-
-Extract:
-- customer_name (full name, string)
-- phone_number (normalize to E.164 format: +1XXXXXXXXXX for US numbers, e.g. +15551234567)
-- email (email address, string – if available)
-- visit_date (normalize to YYYY-MM-DD format, e.g. 2026-06-20)
-
-Rules:
-- Return ONLY a valid JSON array of objects with exactly these four fields.
-- If a field cannot be found, use null for that field.
-- Do NOT include any explanation, markdown, or text outside the JSON array.
-
-Text to parse:
-"""
-${rawText}
-"""
-`.trim();
-
-    console.log("📤 Sending prompt to Gemini...");
-
-    // ✅ EXACTLY THE SAME PATTERN AS THE WORKING generateGeminiReply FUNCTION
-    const response = await client.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-      },
-    });
-
-    const rawJson = response.text?.trim() ?? "[]";
-
-    // Clean markdown code fences
-    const cleaned = rawJson
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/, "")
-      .trim();
-
-    let customers: Array<{
-  customer_name: string | null;
-  phone_number: string | null;
-  email: string | null;        // ✅ ADD THIS
-  visit_date: string | null;
-}>;
-
-    try {
-      customers = JSON.parse(cleaned);
-      console.log(`✅ Parsed ${customers.length} customers successfully`);
-    } catch {
-      console.error("Failed to parse AI response as JSON:", cleaned);
-      return res.status(500).json({ error: "AI returned invalid JSON" });
-    }
-
-    // ─── POST-PROCESS: Fix mis-parsed emails ──────────────────────
-const sanitised = customers.map((c) => {
-  // If phone_number looks like an email (contains @) and email is null, move it to email
-  if (c.phone_number && c.phone_number.includes('@') && !c.email) {
-    console.log(`🔧 Fixing mis-parsed email: "${c.phone_number}" → moving to email field`);
-    c.email = c.phone_number;
-    c.phone_number = null;
-  }
-
-  return {
-    customer_name: c.customer_name ?? null,
-    phone_number: c.phone_number ?? null,
-    email: c.email ?? null,
-    visit_date: c.visit_date ?? null,
-  };
-});
-
-    return res.json({ customers: sanitised });
-  } catch (err: unknown) {
-  const message = err instanceof Error ? err.message : "Unknown error";
-  console.error("❌ AI parsing error:", message);
-  // Return a 500 error, no sample data
-  return res.status(500).json({ error: "Failed to parse customers. Please check your input or try again." });
-}
-});
 
 
 
@@ -2172,7 +2813,8 @@ setInterval(async () => {
 
 
 app.post('/api/stripe/create-checkout', async (req, res) => {
-  const { plan = 'basic', userId, email } = req.body;
+  const { plan = 'basic', email } = req.body;
+  const userId = req.userId;
 
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2250,7 +2892,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
 
 
 // ─── GENERATE TOKEN FOR QR CODE ──────────────────────────────────
-app.post('/api/sms/generate-token', authenticate, async (req, res) => {
+app.post('/api/sms/generate-token', async (req, res) => {
   const userId = req.userId;
   const { placeId, contactEmail, customerName, businessName } = req.body;
 
@@ -2279,7 +2921,8 @@ app.post('/api/sms/generate-token', authenticate, async (req, res) => {
 
 
 app.post('/api/stripe/portal', async (req, res) => {
-  const { customerId, userId } = req.body;
+  const { customerId } = req.body;
+  const userId = req.userId; 
   const stripeClient = getStripeClient();
 
   if (!stripeClient) {
@@ -2329,7 +2972,8 @@ app.post('/api/stripe/portal', async (req, res) => {
 });
 
 app.post('/api/stripe/cancel-feedback', async (req, res) => {
-  const { userId, reason } = req.body;
+  const { reason } = req.body;
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
 
   if (supabaseServiceClient) {
@@ -2349,7 +2993,7 @@ app.post('/api/stripe/cancel-feedback', async (req, res) => {
 });
 
 
-app.post('/api/google/disconnect', authenticate, async (req, res) => {
+app.post('/api/google/disconnect', async (req, res) => {
   const userId = req.userId;
 
   if (!supabaseServiceClient) {
@@ -2377,7 +3021,7 @@ app.post('/api/google/disconnect', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/reviews/simulate-google', authenticate, requirePlan('pro'), async (req, res) => {
+app.post('/api/reviews/simulate-google', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
@@ -2482,7 +3126,7 @@ Aesthetic Tone: ${profile.tone}`;
 
 
 
-app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res) => {
+app.get('/api/autopilot/logs', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
@@ -2539,7 +3183,7 @@ app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res
   res.json({ logs });
 });
 
-app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, res) => {
+app.get('/api/autopilot/stats', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId parameter is required' });
 
@@ -2587,7 +3231,7 @@ app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, re
 
 
 // ─── AUTOPILOT SYNC ──────────────────────────────────────────────
-app.post('/api/autopilot/sync', authenticate, requirePlan('pro'), async (req, res) => {
+app.post('/api/autopilot/sync', requirePlan('pro'), async (req, res) => {
   const userId = req.userId; // ✅ Already set by authenticate middleware
   if (!userId) {
     return res.status(400).json({ error: 'userId is required' });
@@ -2621,204 +3265,14 @@ app.post('/api/autopilot/sync', authenticate, requirePlan('pro'), async (req, re
 
 
 
-// server.ts – replace the existing /api/feedback/submit route
-
-app.post('/api/feedback/submit', async (req, res) => {
-  const { 
-    business_name, 
-    rating, 
-    customer_ip: clientIp, 
-    place_id, 
-    customer_name,
-    business_id   // <-- NEW: the business owner's user ID from the QR URL
-  } = req.body;
-
-  if (!business_name || rating === undefined || rating === null) {
-    return res.status(400).json({ error: 'business_name and rating are required' });
-  }
-
-  // ─── Normalize the customer name ONCE at the top ────────────────
-  const rawCustomerName = (customer_name || '').trim();
-  const normalizedName = rawCustomerName
-    .toLowerCase()
-    .replace(/\s+/g, ' '); // collapse multiple spaces
-
-  const determinedIp = clientIp || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
-  const finalIp = Array.isArray(determinedIp) ? determinedIp[0] : determinedIp;
-
-  // ── DETERMINE USER ID ──────────────────────────────────────────
-  let userId = null;
-
-  // 1. Use the provided business_id directly (from QR code)
-  if (business_id) {
-    userId = business_id;
-  } 
-  // 2. Fallback: look up by place_id (for backwards compatibility)
-  else if (place_id && supabaseServiceClient) {
-    try {
-      const { data: profile } = await supabaseServiceClient
-        .from('profiles')
-        .select('id')
-        .eq('place_id', place_id)
-        .maybeSingle();
-      if (profile) userId = profile.id;
-    } catch (err) {
-      console.warn('Error looking up place_id:', err);
-    }
-  }
-
-  // ── DUPLICATE CHECK using normalizedName (already defined) ──
-  if (userId && rawCustomerName) {
-    const { data: existing, error: checkError } = await supabaseServiceClient
-      .from('feedback_submissions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('customer_name_normalized', normalizedName) // ✅ Case-insensitive check
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('Duplicate check error:', checkError);
-    }
-
-    if (existing) {
-      return res.status(409).json({
-        success: false,
-        error: 'already_reviewed',
-        message: `You've already shared your feedback with ${business_name}. Thank you for your support!`
-      });
-    }
-  }
-
-  // ── SAVE TO DATABASE ──────────────────────────────────────────
-  let insertedRecord = null;
-  let savedToDb = false;
-
-  if (supabaseServiceClient) {
-    try {
-      const insertData: any = {
-        business_name,
-        rating: parseInt(rating, 10),
-        customer_ip: finalIp,
-        created_at: new Date().toISOString(),
-        customer_name: rawCustomerName,              // ✅ store original (trimmed)
-        customer_name_normalized: normalizedName,    // ✅ store normalized
-      };
-
-      if (userId) insertData.user_id = userId;
-      // ✅ No need to set customer_name again – it's already in the object
-
-      const { data, error } = await supabaseServiceClient
-        .from('feedback_submissions')
-        .insert([insertData])
-        .select();
-
-      if (!error && data && data.length > 0) {
-        insertedRecord = data[0];
-        savedToDb = true;
-      } else {
-        // If unique violation, return friendly error
-        if (error?.code === '23505') {
-          return res.status(409).json({
-            success: false,
-            error: 'already_reviewed',
-            message: `You've already shared your feedback with ${business_name}. Thank you!`
-          });
-        }
-        return res.status(500).json({ error: error?.message || 'Failed to save feedback' });
-      }
-    } catch (err: any) {
-      console.warn('Supabase insert error:', err.message);
-      if (err.code === '23505') {
-        return res.status(409).json({
-          success: false,
-          error: 'already_reviewed',
-          message: `You've already shared your feedback with ${business_name}. Thank you!`
-        });
-      }
-      return res.status(500).json({ error: err.message });
-    }
-  }
-
-  // ── FALLBACK (if Supabase isn't available) ──────────────────
-  if (!savedToDb) {
-    insertedRecord = {
-      id: `local_fallback_${Math.random().toString(36).substring(2, 11)}`,
-      business_name,
-      rating: parseInt(rating, 10),
-      customer_ip: finalIp,
-      user_id: userId,
-      customer_name: rawCustomerName || null,        // ✅ use rawCustomerName
-      customer_name_normalized: normalizedName || null, // ✅ include normalized
-      created_at: new Date().toISOString()
-    };
-  }
-
-  res.json({ success: true, submission: insertedRecord, savedToDb });
-});
 
 
-// server.ts – replace the existing /api/business/:id
-
-app.get('/api/business/:id', async (req, res) => {
-  const { id } = req.params;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Business ID is required' });
-  }
-
-  try {
-    // First, get the profile
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('business_name, place_id, contact_email')
-      .eq('id', id)
-      .single();
-
-    if (profileError && profileError.code !== 'PGRST116') {
-      throw profileError;
-    }
-
-    let business_name = profile?.business_name || null;
-    let contact_email = profile?.contact_email || null;
-    let place_id = profile?.place_id || null;
-
-    // If place_id is missing, try to get it from google_tokens
-    if (!place_id && supabaseServiceClient) {
-      const { data: token } = await supabaseServiceClient
-        .from('google_tokens')
-        .select('location_id')
-        .eq('user_id', id)
-        .maybeSingle();
-      if (token?.location_id) {
-        place_id = token.location_id;
-        // Optionally, update the profile for future use
-        await supabaseServiceClient
-          .from('profiles')
-          .update({ place_id: place_id })
-          .eq('id', id);
-      }
-    }
-
-    if (!business_name) {
-      return res.status(404).json({ error: 'Business not found' });
-    }
-
-    res.json({
-      business_name,
-      place_id,
-      contact_email,
-    });
-  } catch (err) {
-    console.error('Error fetching business:', err);
-    res.status(500).json({ error: 'Failed to fetch business' });
-  }
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SAVE AUTO-SEND TOGGLE STATE
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.post('/api/sms/auto-send/toggle', authenticate, requirePlan('premium'), async (req, res) => {
+app.post('/api/sms/auto-send/toggle', requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { enabled, sendDelay } = req.body;
 
@@ -2851,7 +3305,7 @@ app.post('/api/sms/auto-send/toggle', authenticate, requirePlan('premium'), asyn
 // ─────────────────────────────────────────────────────────────────────────────
 // GET AUTO-SEND STATE
 // ─────────────────────────────────────────────────────────────────────────────
-app.get('/api/sms/auto-send/state', authenticate, requirePlan('premium'), async (req, res) => {
+app.get('/api/sms/auto-send/state', requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
 
   // 1. Fetch profile settings
@@ -2902,7 +3356,7 @@ app.get('/api/sms/auto-send/state', authenticate, requirePlan('premium'), async 
    
 
 
-app.get('/api/sms/upcoming', authenticate, async (req, res) => {
+app.get('/api/sms/upcoming', async (req, res) => {
   const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ error: 'userId header missing' });
@@ -2931,7 +3385,7 @@ app.get('/api/sms/upcoming', authenticate, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET SCHEDULED CUSTOMERS
 // ─────────────────────────────────────────────────────────────────────────────
-app.get('/api/sms/scheduled-customers', authenticate, async (req, res) => {
+app.get('/api/sms/scheduled-customers', async (req, res) => {
   const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ error: 'userId header missing' });
@@ -2957,92 +3411,6 @@ app.get('/api/sms/scheduled-customers', authenticate, async (req, res) => {
 
 
 
-
-// Fetch feedback submissions for a business owner
-app.post('/api/contact', async (req, res) => {
-  const { name, email, message } = req.body;
-
-  if (!name || !email || !message) {
-    return res.status(400).json({ error: 'Name, email, and message are required fields.' });
-  }
-
-  if (!email.includes('@') || !email.includes('.')) {
-    return res.status(400).json({ error: 'Please enter a valid email address.' });
-  }
-
-  let insertedRecord = null;
-  let savedToDb = false;
-
-  if (supabaseServiceClient) {
-    try {
-      const { data, error } = await supabaseServiceClient
-        .from('contact_messages')
-        .insert([{
-          name,
-          email,
-          message,
-          created_at: new Date().toISOString()
-        }])
-        .select();
-
-      if (!error && data && data.length > 0) {
-        insertedRecord = data[0];
-        savedToDb = true;
-      } else {
-        console.warn('Supabase contact message insert warning:', error.message);
-        return res.status(500).json({ error: `Save failed: ${error.message}` });
-      }
-    } catch (err: any) {
-      console.warn('Supabase contact_messages insert fail:', err.message);
-      return res.status(500).json({ error: `Server error while saving message: ${err.message}` });
-    }
-  } else {
-    console.warn('Supabase service client not initialized during contact submission.');
-    insertedRecord = {
-      id: `local_fallback_${Math.random().toString(36).substring(2, 11)}`,
-      name,
-      email,
-      message,
-      created_at: new Date().toISOString()
-    };
-    savedToDb = false;
-    return res.json({ success: true, submission: insertedRecord, savedToDb });
-  }
-
-  // ─── SEND AUTO-REPLY WITH CALENDLY LINK ──────────────────────────
-  try {
-    const autoReplyHtml = `
-      <h1>Thanks for reaching out, ${name}!</h1>
-      <p>I'm Thomas, founder of Rewakely. I'd love to show you how we can help your business.</p>
-      <p><strong>Book a quick demo here:</strong></p>
-      <p><a href="https://calendly.com/rewakely/15min" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">📅 Book a Demo</a></p>
-      <p>Or feel free to reply to this email directly.</p>
-      <p>Looking forward to connecting!</p>
-      <p>– Thomas<br>Founder, Rewakely</p>
-    `;
-
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Thomas <thomas@rewakely.com>',
-        to: [email],
-        subject: `Thanks for reaching out, ${name}!`,
-        html: autoReplyHtml,
-      }),
-    });
-
-    console.log(`✅ Auto-reply sent to ${email}`);
-  } catch (err: any) {
-    console.warn('Failed to send auto-reply email:', err.message);
-    // Don't fail the request – just log the error
-  }
-
-  res.json({ success: true, submission: insertedRecord, savedToDb });
-});
 
 // -------------------- GOOGLE OAUTH & BACKGROUND SYNC --------------------
 async function refreshGoogleAccessToken(userId: string, tokensModel: any) {
@@ -3458,7 +3826,7 @@ async function syncAllAutopilotGMB() {
 
 
 // -------------------- AUTOPILOT TOGGLE --------------------
-app.post('/api/user/autopilot-toggle', authenticate, requirePlan('pro'), async (req, res) => {
+app.post('/api/user/autopilot-toggle', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   const { enabled } = req.body;
 
@@ -3497,7 +3865,11 @@ app.post('/api/user/autopilot-toggle', authenticate, requirePlan('pro'), async (
 
 // -------------------- GOOGLE OAUTH ROUTES --------------------
 app.get('/api/auth/google', (req, res) => {
-  const userId = req.query.userId || req.headers['x-user-id'];
+  const userId = req.userId; // <-- From global auth
+  if (!userId) {
+    return res.status(401).send('Authentication required to connect Google.');
+  }
+
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   
   if (!userId) {
@@ -3523,146 +3895,11 @@ app.get('/api/auth/google', (req, res) => {
   res.redirect(authUrl);
 });
 
-app.get('/api/auth/google/callback', async (req, res) => {
-  const { code, state: userId } = req.query;
-
-  if (!code || !userId) {
-    return res.status(400).send('Google OAuth callback failed: Missing authorize code or state userId.');
-  }
-
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
-  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
-  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
-
-  try {
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code: code as string,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
-      }).toString()
-    });
-
-    const tokens = await tokenRes.json();
-    if (!tokenRes.ok || !tokens.access_token) {
-      console.error('Exchange Google code failed:', tokens);
-      return res.status(400).send(`Token exchange error: ${tokens.error_description || 'Unknown Google error'}`);
-    }
-
-    const { access_token, refresh_token, expires_in } = tokens;
-    const expiresAt = new Date(Date.now() + (expires_in || 3600) * 1000).toISOString();
-
-    let finalRefreshToken = refresh_token;
-    if (!finalRefreshToken && supabaseServiceClient) {
-      try {
-        const { data: existing } = await supabaseServiceClient
-          .from('google_tokens')
-          .select('refresh_token')
-          .eq('user_id', userId as string)
-          .maybeSingle();
-        if (existing?.refresh_token) {
-          finalRefreshToken = existing.refresh_token;
-        }
-      } catch (eToken) {
-        console.warn('Could not read existing tokens:', eToken);
-      }
-    }
-
-    if (!finalRefreshToken) {
-      finalRefreshToken = 'rt_gmb_sandbox_fallback_858';
-    }
-
-    let accountId = 'acc_gmb_default_999';
-    let locationId = 'loc_gmb_default_718';
-
-    try {
-      const accountsRes = await fetch('https://mybusinessaccountmanagement.googleapis.com/v1/accounts', {
-        headers: { 'Authorization': `Bearer ${access_token}` }
-      });
-      if (accountsRes.ok) {
-        const accountsData = await accountsRes.json();
-        if (accountsData.accounts && accountsData.accounts.length > 0) {
-          accountId = accountsData.accounts[0].name.split('/').pop() || 'acc_gmb_default_999';
-          const locationsRes = await fetch(`https://mybusinessbusinessinformation.googleapis.com/v1/accounts/${accountId}/locations`, {
-            headers: { 'Authorization': `Bearer ${access_token}` }
-          });
-          if (locationsRes.ok) {
-            const locationsData = await locationsRes.json();
-            if (locationsData.locations && locationsData.locations.length > 0) {
-              locationId = locationsData.locations[0].name.split('/').pop() || 'loc_gmb_default_718';
-            }
-          }
-        }
-      }
-    } catch (gErr) {
-      console.warn('GMB fetch account metadata warning:', gErr);
-    }
-
-    if (!supabaseServiceClient) {
-      throw new Error('Supabase client unavailable.');
-    }
-
-    const { error: upsertErr } = await supabaseServiceClient
-      .from('google_tokens')
-      .upsert({
-        user_id: userId as string,
-        access_token,
-        refresh_token: finalRefreshToken,
-        expires_at: expiresAt,
-        location_id: locationId,
-        account_id: accountId,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' });
-
-    if (upsertErr) {
-      console.error('Google tokens database upsert failed:', upsertErr.message);
-    }
-
-    res.send(`
-      <html>
-        <head>
-          <title>Google GMB Connected Successfully</title>
-        </head>
-        <body style="font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8fafc; color: #1e293b;">
-          <div style="background-color: white; padding: 2.5rem; border-radius: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); text-align: center; max-width: 400px; margin: 15px;">
-            <div style="width: 4rem; height: 4rem; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            </div>
-            <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 0.5rem; color: #0f172a;">Google My Business Connected!</h2>
-            <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 1.5rem;">
-               Your active Google Reviews location has been authenticated and linked securely to your main dashboard profile!
-            </p>
-            <p style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">
-              This popup window will close automatically...
-            </p>
-          </div>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
-              setTimeout(() => {
-                window.close();
-              }, 1500);
-            } else {
-              window.location.href = '/#currentRoute=dashboardAutopilot';
-            }
-          </script>
-        </body>
-      </html>
-    `);
-
-  } catch (err: any) {
-    console.error('Google callback code exchange failed:', err);
-    res.status(500).send(`GMB Authentication error: ${err.message}`);
-  }
-});
 
 
 
-app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res) => {
+
+app.get('/api/autopilot/logs', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
 
   if (!userId) return res.status(400).json({ error: 'userId is required' });
@@ -3715,7 +3952,7 @@ app.get('/api/autopilot/logs', authenticate, requirePlan('pro'), async (req, res
   }
 });
 
-app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, res) => {
+app.get('/api/autopilot/stats', requirePlan('pro'), async (req, res) => {
   const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId is required' });
 
@@ -3751,7 +3988,7 @@ app.get('/api/autopilot/stats', authenticate, requirePlan('pro'), async (req, re
 });
 
 // ─── GET FEEDBACK SUBMISSIONS ──────────────────────────────────────
-app.get('/api/feedback/submissions', authenticate, async (req, res) => {
+app.get('/api/feedback/submissions', async (req, res) => {
   const userId = req.userId;
   
   console.log('🔍 [Feedback] Fetching for user:', userId);
@@ -3949,7 +4186,7 @@ app.get('/api/google/callback', async (req, res) => {
   }
 });
 
-app.get('/api/google/status', authenticate, async (req, res) => {
+app.get('/api/google/status', async (req, res) => {
   const userId = req.userId; // Now from JWT
   if (!userId) return res.status(400).json({ error: 'User not authenticated' });
 
@@ -3970,7 +4207,7 @@ app.get('/api/google/status', authenticate, async (req, res) => {
   }
 });
 
-app.get('/api/notifications', authenticate, async (req, res) => {
+app.get('/api/notifications',async (req, res) => {
   const userId = req.userId;
 
   if (!supabaseServiceClient) {
@@ -3994,7 +4231,7 @@ app.get('/api/notifications', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/notifications/mark-read', authenticate, async (req, res) => {
+app.post('/api/notifications/mark-read',async (req, res) => {
   const userId = req.userId;
   const { notificationId } = req.body;
 
@@ -4059,7 +4296,7 @@ async function startServer() {
 // ──────────────────────────────────────────────────────────────
 
 // 1. POST – Schedule new customers
-app.post('/api/sms/schedule-customers', authenticate, requirePlan('premium'), async (req, res) => {
+app.post('/api/sms/schedule-customers',requirePlan('premium'), async (req, res) => {
   const userId = req.userId;
   const { customers } = req.body;
 
@@ -4186,7 +4423,7 @@ app.post('/api/sms/schedule-customers', authenticate, requirePlan('premium'), as
 });
 
 // 2. DELETE – Clear all pending (MUST come before :id)
-app.delete('/api/sms/scheduled-customers/clear', authenticate, async (req, res) => {
+app.delete('/api/sms/scheduled-customers/clear',async (req, res) => {
   const userId = req.userId;
   if (!userId) {
     return res.status(400).json({ error: 'userId missing' });
@@ -4216,7 +4453,7 @@ app.delete('/api/sms/scheduled-customers/clear', authenticate, async (req, res) 
 });
 
 // 3. DELETE – Single customer (MUST come after clear)
-app.delete('/api/sms/scheduled-customers/:id', authenticate, async (req, res) => {
+app.delete('/api/sms/scheduled-customers/:id',async (req, res) => {
   const { id } = req.params;
   const userId = req.userId;
   if (!id) {
@@ -4253,7 +4490,7 @@ app.delete('/api/sms/scheduled-customers/:id', authenticate, async (req, res) =>
 
 
 // Add this GET endpoint
-app.get('/api/user/profile', authenticate, async (req, res) => {
+app.get('/api/user/profile',async (req, res) => {
   const userId = req.userId;
   try {
     const { data: profile, error } = await supabaseServiceClient
@@ -4277,7 +4514,7 @@ app.get('/api/user/profile', authenticate, async (req, res) => {
 // ─── SEND EMAIL INVITE ──────────────────────────────────────────────
 
 app.post('/api/email/send-invite', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+  const userId = req.userId; // <-- From global auth
   const { customerName, email } = req.body;
 
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
@@ -4395,84 +4632,15 @@ const reviewLink = `https://rewakely.com/review?business=${userId}`;
 });
 
 
-// ─── TOKEN REDIRECT ROUTE ──────────────────────────────────────
-app.get('/r/:token', async (req, res) => {
-  const { token } = req.params;
-
-  if (!token) {
-    return res.status(400).send('Invalid review link.');
-  }
-
-  try {
-    // Look up the token in the database
-    const { data, error } = await supabaseServiceClient
-      .from('review_tokens')
-      .select('*')
-      .eq('token', token)
-      .gt('expires_at', new Date().toISOString())
-      .eq('used', false)
-      .maybeSingle();
-
-    if (error || !data) {
-      console.warn(`Invalid or expired token: ${token}`);
-      return res.status(404).send(`
-        <html>
-          <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; margin: 0;">
-            <div style="background: white; padding: 2rem; border-radius: 1rem; text-align: center; max-width: 400px;">
-              <h2>🔗 Link Expired or Invalid</h2>
-              <p style="color: #64748b;">This review link is no longer valid. Please contact the business directly.</p>
-            </div>
-          </body>
-        </html>
-      `);
-    }
-
-    // ✅ Mark as used (prevents reuse – optional, but good security)
-    // Comment this out if you want the link to work multiple times
-    // await supabaseServiceClient
-    //   .from('review_tokens')
-    //   .update({ used: true })
-    //   .eq('token', token);
-
-    // Redirect to the actual review page with all the data
-    const redirectUrl = `/review?business=${encodeURIComponent(data.business_name)}&placeId=${encodeURIComponent(data.place_id)}&email=${encodeURIComponent(data.contact_email)}&customerName=${encodeURIComponent(data.customer_name)}`;
-    res.redirect(redirectUrl);
-
-  } catch (err) {
-    console.error('Token redirect error:', err);
-    res.status(500).send('Server error');
-  }
-});
 
 
-// ─── EMAIL TRACKING (1x1 pixel) ────────────────────────────────────
 
-app.get('/api/email/track', async (req, res) => {
-  const { id } = req.query;
 
-  if (id) {
-    try {
-      // Update the scheduled_customers record to mark as opened
-      await supabaseServiceClient
-        .from('scheduled_customers')
-        .update({ opened_at: new Date().toISOString() })
-        .eq('id', id);
-    } catch (err) {
-      console.warn('Failed to update open tracking:', err);
-    }
-  }
-
-  // Return a transparent 1x1 GIF
-  res.setHeader('Content-Type', 'image/gif');
-  // Base64 of a transparent GIF
-  const pixel = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
-  res.send(pixel);
-});
 
 // ─── GET ALL INVITES (Email + SMS) ──────────────────────────────────
 
 app.get('/api/invites/all', async (req, res) => {
-  const userId = req.headers['x-user-id'] as string;
+  const userId = req.userId;
   if (!userId) return res.status(400).json({ error: 'userId header missing' });
 
   try {
@@ -4536,84 +4704,9 @@ app.get('/api/invites/all', async (req, res) => {
   }
 });
 
-// ===== DEMO SIGNUP ENDPOINT =====
-app.post('/api/demo-signup', async (req, res) => {
-  const { email } = req.body;
 
-  if (!email || !email.includes('@')) {
-    return res.status(400).json({ error: 'Valid email is required' });
-  }
 
-  try {
-    // Save to Supabase (create the 'demo_signups' table first!)
-    const { error } = await supabaseServiceClient
-      .from('demo_signups')
-      .insert([{ email, created_at: new Date().toISOString() }]);
 
-    if (error) {
-      console.error('Demo signup error:', error);
-      return res.status(500).json({ error: 'Failed to save email' });
-    }
 
-    // ✅ Optional: Send a welcome email with the video link
-    // (We'll add this later if needed)
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo signup server error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ===== TRACK DEMO VIEWS =====
-app.post('/api/track-demo-view', async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-  try {
-    await supabaseServiceClient
-      .from('demo_views') // ✅ Create this table first!
-      .insert([{ email, viewed_at: new Date().toISOString() }]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo view tracking error:', err);
-    res.status(500).json({ error: 'Failed to track view' });
-  }
-});
-
-// ===== LOG DEMO VIDEO EVENTS =====
-app.post('/api/log-demo-event', async (req, res) => {
-  const { email, event, watch_percentage } = req.body;
-
-  if (!email || !event) {
-    return res.status(400).json({ error: 'Email and event are required' });
-  }
-
-  try {
-    // Determine if the user watched the video based on the event
-    const watched = event === 'ended' || watch_percentage >= 90;
-
-    // Save to Supabase
-    const { error } = await supabaseServiceClient
-      .from('demo_analytics')
-      .insert([{
-        email,
-        watched,
-        watch_percentage,
-        created_at: new Date().toISOString()
-      }]);
-
-    if (error) {
-      console.error('Demo analytics error:', error);
-      return res.status(500).json({ error: 'Failed to log event' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Demo analytics server error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 startServer();

@@ -60,7 +60,7 @@ export default function ReviewInvitesView({ userId, isPremium, subscriptionPlan,
       if (!userId) return;
       try {
         const res = await fetch('/api/invites/all', {
-          headers: { 'x-user-id': userId }
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
         });
         if (res.ok) {
           const data = await res.json();
@@ -140,7 +140,7 @@ useEffect(() => {
   const refreshInvites = async () => {
     try {
       const res = await fetch('/api/invites/all', {
-        headers: { 'x-user-id': userId }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -168,7 +168,7 @@ useEffect(() => {
     try {
       const res = await fetch(`/api/sms/scheduled-customers/${deleteModal.inviteId}`, {
         method: 'DELETE',
-        headers: { 'x-user-id': userId }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
       });
 
       if (res.ok) {
