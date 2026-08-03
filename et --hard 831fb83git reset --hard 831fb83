@@ -1,0 +1,119 @@
+[33ma361863[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m HEAD@{0}: commit: chore: ignore video files
+[33m77e54f7[m HEAD@{1}: reset: moving to 77e54f7
+[33m5db147a[m HEAD@{2}: commit: added video youtube embedded
+[33mde171a7[m HEAD@{3}: commit: Added video youtube embedded
+[33m831fb83[m HEAD@{4}: commit: feat: add demo video (hosted on YouTube), plus all the security changes and everything
+[33m77e54f7[m HEAD@{5}: reset: moving to HEAD~2
+[33m89fa5df[m HEAD@{6}: commit: chore: ignore video files
+[33me1882ec[m HEAD@{7}: commit: At ton of changes:
+[33m77e54f7[m HEAD@{8}: commit: Fixing Auto Reply function
+[33md6be563[m HEAD@{9}: commit: All vulnerabilities fixed, completely 95% more safer than earlier!
+[33mfc87e07[m HEAD@{10}: commit: Lock for the basic changes fixed hopefully
+[33m0da75a1[m HEAD@{11}: commit: Even more plan changes
+[33mfe65631[m HEAD@{12}: commit: Fixed the plan because it had tons of issues
+[33mbd1a5b3[m HEAD@{13}: commit: Visual change to the upgrade path when not active on a subscription
+[33m7cd355e[m HEAD@{14}: commit: Added basic plan
+[33m5bc17ba[m HEAD@{15}: commit: Gemini change for auto reply (makes it always like work and stuff)
+[33m3dcef5b[m HEAD@{16}: commit: Link change in qr (basically nothing)
+[33mcdd1ba6[m HEAD@{17}: commit: Small button fix in dashboard
+[33mee1efa0[m[33m ([m[1;31morigin/hotfix/subscription-control[m[33m, [m[1;32mhotfix/subscription-control[m[33m)[m HEAD@{18}: merge hotfix/subscription-control: Fast-forward
+[33m350e55b[m HEAD@{19}: checkout: moving from hotfix/subscription-control to main
+[33mee1efa0[m[33m ([m[1;31morigin/hotfix/subscription-control[m[33m, [m[1;32mhotfix/subscription-control[m[33m)[m HEAD@{20}: checkout: moving from main to hotfix/subscription-control
+[33m350e55b[m HEAD@{21}: checkout: moving from giant-revolution to main
+[33m36e941e[m[33m ([m[1;31morigin/giant-revolution[m[33m, [m[1;32mgiant-revolution[m[33m)[m HEAD@{22}: commit: feat: Zapier integration
+[33m643e745[m HEAD@{23}: checkout: moving from main to giant-revolution
+[33m350e55b[m HEAD@{24}: reset: moving to HEAD
+[33m350e55b[m HEAD@{25}: checkout: moving from hotfix/subscription-control to main
+[33mee1efa0[m[33m ([m[1;31morigin/hotfix/subscription-control[m[33m, [m[1;32mhotfix/subscription-control[m[33m)[m HEAD@{26}: commit: fix: subscription control portal_error - add stripe_customer_id check
+[33m350e55b[m HEAD@{27}: checkout: moving from main to hotfix/subscription-control
+[33m350e55b[m HEAD@{28}: checkout: moving from main to main
+[33m350e55b[m HEAD@{29}: reset: moving to HEAD
+[33m350e55b[m HEAD@{30}: commit: Implementing Zapier
+[33mf9d71db[m HEAD@{31}: commit: Changed Auto Send schedual time interval
+[33mcb2639c[m HEAD@{32}: commit: e
+[33mb7c1772[m HEAD@{33}: commit: Small qr code & link changes
+[33m84cdf65[m HEAD@{34}: commit: Qr code fix
+[33mc761b23[m HEAD@{35}: commit: AUto send update fix
+[33mb7dd751[m HEAD@{36}: commit: Auto send emails fix
+[33m9973188[m HEAD@{37}: commit: Login fixes
+[33ma3845bf[m HEAD@{38}: commit: fe
+[33m8d6ce5b[m HEAD@{39}: commit: lgin fiexs again
+[33m00eb448[m HEAD@{40}: commit: lgin fixes
+[33m50fd044[m HEAD@{41}: commit: login fixes
+[33mb3ed2a1[m HEAD@{42}: commit: Fixing login again
+[33m1b20462[m HEAD@{43}: commit: Fixing login problems
+[33m30ed74b[m HEAD@{44}: commit: Remember me for 30 days button works, like the sign in work better and more longterm now
+[33m7902267[m HEAD@{45}: commit: Apollo AI website tracking implementation
+[33m48b3d1f[m HEAD@{46}: commit: Public review page changed because it was illegal
+[33m0b8e9d1[m HEAD@{47}: checkout: moving from giant-revolution to main
+[33m643e745[m HEAD@{48}: checkout: moving from main to giant-revolution
+[33m0b8e9d1[m HEAD@{49}: reset: moving to origin/main
+[33m8346a31[m HEAD@{50}: checkout: moving from main to main
+[33m8346a31[m HEAD@{51}: commit: WIP: Premium plan tabs and upgrade screen
+[33m0b8e9d1[m HEAD@{52}: reset: moving to HEAD
+[33m0b8e9d1[m HEAD@{53}: reset: moving to origin/main
+[33m0b8e9d1[m HEAD@{54}: checkout: moving from giant-revolution to main
+[33m643e745[m HEAD@{55}: commit: WIP: Premium plan tabs and upgrade screen
+[33m10a2790[m HEAD@{56}: checkout: moving from main to giant-revolution
+[33m0b8e9d1[m HEAD@{57}: reset: moving to HEAD
+[33m0b8e9d1[m HEAD@{58}: commit: updated auto reply fixes and stuff
+[33mb37eaae[m HEAD@{59}: commit: nothing
+[33m10a2790[m HEAD@{60}: checkout: moving from giant-revolution to main
+[33m10a2790[m HEAD@{61}: checkout: moving from main to giant-revolution
+[33m10a2790[m HEAD@{62}: checkout: moving from giant-revolution to main
+[33m10a2790[m HEAD@{63}: checkout: moving from main to giant-revolution
+[33m10a2790[m HEAD@{64}: commit: nothing basically
+[33m1d5314c[m HEAD@{65}: commit: Error handling for AI and some small fixes here and there.
+[33m2445fcc[m HEAD@{66}: commit: Favicon update on search results
+[33m881ce80[m HEAD@{67}: commit: Visual updates, and button updates, remember me for 30 days updates (small shit)
+[33m2b2878b[m HEAD@{68}: commit: Visual updated in the dashboards and some tabs (small crap)
+[33md01206d[m HEAD@{69}: commit: Fixing feedback submissions problem
+[33mef7f769[m HEAD@{70}: commit: Rate Limit increase
+[33mdd77314[m HEAD@{71}: commit: Updated completely main page visuals, made it super cool.
+[33m97e0d53[m HEAD@{72}: commit: Small change of color for email verification message
+[33mc18b4c2[m HEAD@{73}: commit: link change
+[33m9b4d731[m HEAD@{74}: commit: Button & link change
+[33m38bf358[m HEAD@{75}: commit: Tab updates help and support, added meeting link
+[33m0abd3bd[m HEAD@{76}: commit: Link changes for demo again
+[33m54bfab1[m HEAD@{77}: commit: Change link for demo
+[33mc5209fe[m HEAD@{78}: commit: Book A Demo button added
+[33m01144cd[m HEAD@{79}: commit: Pen Testing Changes
+[33m81b5da2[m HEAD@{80}: commit: Small update main page
+[33m4d1e754[m HEAD@{81}: commit: small updte
+[33m7f75b9b[m HEAD@{82}: commit: Update Link in the email
+[33m2a1a79b[m HEAD@{83}: commit: nothing
+[33ma428a0c[m HEAD@{84}: commit: Changed the SMS to email messages for review invitation
+[33m3630ccb[m HEAD@{85}: commit: Changes for the price (small update)
+[33m82d8469[m HEAD@{86}: commit: Fixed Random User Creation After running problem
+[33m8cf9695[m HEAD@{87}: commit: small update
+[33m0905e2a[m HEAD@{88}: commit: Updated reviews, same thing as last time
+[33ma0ad170[m HEAD@{89}: commit: Updated links, and like review from the customers again
+[33maeb2fc2[m HEAD@{90}: commit: Update Public Review View tab
+[33m89fe9bc[m HEAD@{91}: commit: Update the QR Code system!
+[33m90f7e56[m HEAD@{92}: commit: Added QR Code function!
+[33m364272e[m HEAD@{93}: commit: General Updates (dashboard tours, review, main page)
+[33mfe14d9a[m HEAD@{94}: commit: Update Reset pAssword!
+[33m6de66df[m HEAD@{95}: commit: Reset Password Now Works!!
+[33m71c684d[m HEAD@{96}: commit: Google Analytics Implementation
+[33m160b231[m HEAD@{97}: commit: General errors and update fixes
+[33m77bbf52[m HEAD@{98}: commit: Disconnect button upgrade
+[33mdecfb83[m HEAD@{99}: commit: General update, terms of service and privacy policy
+[33m2b96436[m HEAD@{100}: commit: UI Updates
+[33mcd62e72[m HEAD@{101}: commit: stripe update
+[33mcf5a9b2[m HEAD@{102}: commit: Stripe final update (hopefully)
+[33mb8be699[m HEAD@{103}: commit: Another goddamn stripe update
+[33mfa90b57[m HEAD@{104}: commit: Another stripe update because it still didn't work
+[33m9a0c13d[m HEAD@{105}: commit: Stripe update
+[33ma1f2e06[m HEAD@{106}: commit: Stripe Updates
+[33me55dbc1[m HEAD@{107}: commit: Change to the paywall and the gemini situation
+[33md7a8276[m HEAD@{108}: commit: Email Update
+[33m726b24a[m HEAD@{109}: commit: Email update
+[33mb0d1c2a[m HEAD@{110}: commit: Fix terms & privacy policy
+[33m0f3ccb5[m HEAD@{111}: commit: Fix Google OAuth redirect URIs to use HTTPS
+[33m779b0f9[m HEAD@{112}: commit: Update tab title to Rewakely
+[33m7a5ce99[m HEAD@{113}: Branch: renamed refs/heads/main to refs/heads/main
+[33m7a5ce99[m HEAD@{115}: commit: Launch Rewakely 🚀
+[33mad7a9c9[m HEAD@{116}: Branch: renamed refs/heads/main to refs/heads/main
+[33mad7a9c9[m HEAD@{118}: Branch: renamed refs/heads/main to refs/heads/main
+[33mad7a9c9[m HEAD@{120}: Branch: renamed refs/heads/main to refs/heads/main
+[33mad7a9c9[m HEAD@{122}: commit (initial): Initial commit – ReviewRescue AI full stack

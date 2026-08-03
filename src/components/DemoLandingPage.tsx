@@ -70,57 +70,16 @@ export default function DemoLandingPage({ setCurrentRoute }: DemoLandingPageProp
 
           {/* Video */}
           <div className="mt-8 bg-slate-900 rounded-2xl aspect-video max-w-3xl mx-auto shadow-2xl overflow-hidden">
-  <video
-    src="/videos/rewakely-demo.mp4"
-    controls
+  <iframe
+    id="rewakely-demo-player"
+    width="100%"
+    height="100%"
+    src="https://www.youtube.com/embed/YOUR_VIDEO_ID?enablejsapi=1&rel=0"
+    title="Rewakely Demo"
+    frameBorder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
     className="w-full h-full"
-    poster="/images/demo-thumbnail.jpg"
-    onError={(e) => {
-      const video = e.target as HTMLVideoElement;
-      video.poster = "https://via.placeholder.com/800x450/1e293b/ffffff?text=Rewakely+Demo";
-    }}
-    onPlay={() => {
-      // Log that the user started watching
-      fetch('/api/log-demo-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          event: 'play',
-          watch_percentage: 0
-        })
-      }).catch(() => {});
-    }}
-    onTimeUpdate={(e) => {
-      const video = e.target as HTMLVideoElement;
-      if (video.duration > 0) {
-        const percent = Math.floor((video.currentTime / video.duration) * 100);
-        // Log progress every 10% (to avoid spamming)
-        if (percent % 10 === 0) {
-          fetch('/api/log-demo-event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email,
-              event: 'progress',
-              watch_percentage: percent
-            })
-          }).catch(() => {});
-        }
-      }
-    }}
-    onEnded={() => {
-      // Log that the user finished the video
-      fetch('/api/log-demo-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          event: 'ended',
-          watch_percentage: 100
-        })
-      }).catch(() => {});
-    }}
   />
 </div>
           {/* ===== CTAs BELOW VIDEO ===== */}
