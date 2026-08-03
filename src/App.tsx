@@ -21,7 +21,7 @@ import BillingView from './components/BillingView';
   import { 
     Menu, X, Smartphone, Settings, Shield, Activity, LogOut, ArrowRight, ArrowLeft, Lock, 
     CheckCircle2, Zap, Check, ExternalLink, HelpCircle, ShieldCheck, HeartCrack, 
-    MessageSquare, Star, Sparkles, LogIn, UserPlus, Info, RefreshCw, ThumbsUp, ThumbsDown, XCircle, CheckCircle, MapPin, Eye, EyeOff, Rocket, MessageSquareHeart
+    MessageSquare, Star, Sparkles, LogIn, UserPlus, Info, RefreshCw, ThumbsUp, ThumbsDown, XCircle, CheckCircle, MapPin, Eye, EyeOff, Rocket, MessageSquareHeart, PlayCircle
   } from 'lucide-react';
 
   import Logo from './components/Logo';
@@ -47,6 +47,7 @@ import BillingView from './components/BillingView';
   import ConfirmModal from './components/ConfirmModal';
   import FeedbackView from './components/FeedbackView';
   import { supabaseClient } from './lib/supabaseClient';
+import DemoLandingPage from './components/DemoLandingPage';
 
 
   export default function App() {
@@ -868,6 +869,9 @@ const handleCancelSubscription = async () => {
     // Count AI generations used for display this month
     const repliedCountThisMonth = reviews.filter(r => r.status === 'replied' && !r.is_autopilot).length;
 
+  if (currentRoute === 'demo') {
+  return <DemoLandingPage setCurrentRoute={setCurrentRoute} />;
+}
     if (currentRoute === 'review') {
       return <PublicReviewView />;
     }
@@ -1041,42 +1045,37 @@ const handleCancelSubscription = async () => {
   </button>
   
   <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
-    <a href="#features" className="hover:text-slate-900 transition">Key Features</a>
-    <a href="#pricing" className="hover:text-slate-900 transition font-sans">Plans & Pricing</a>
-    <button 
-      onClick={() => setShowContactModal(true)} 
-      className="hover:text-slate-900 transition font-sans cursor-pointer NavLink"
-      id="landing-nav-contact-desktop"
-    >
-      Contact
+  <a href="#features" className="hover:text-slate-900 transition">Key Features</a>
+  <a href="#pricing" className="hover:text-slate-900 transition font-sans">Plans & Pricing</a>
+  <button
+    onClick={() => setShowContactModal(true)}
+    className="hover:text-slate-900 transition font-sans cursor-pointer NavLink"
+    id="landing-nav-contact-desktop"
+  >
+    Contact
+  </button>
+  <button
+    onClick={() => setCurrentRoute('demo')}
+    className="hover:text-blue-600 transition font-sans cursor-pointer"
+  >
+    Demo
+  </button>
+  {user ? (
+    <button onClick={() => setCurrentRoute('dashboard')} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm">
+      Enter Dashboard
     </button>
-    {user ? (
-      <button 
-        onClick={() => setCurrentRoute('dashboard')}
-        className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm"
-      >
-        Enter Dashboard
+  ) : (
+    <>
+      <a href="https://calendly.com/rewakely/15min" className="hover:text-slate-900 transition">
+        Book a Demo
+      </a>
+      <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
+      <button onClick={() => setCurrentRoute('signup')} className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm">
+        Get Started
       </button>
-    ) : (
-      <>
-        <a
-          href="https://calendly.com/rewakely/15min"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-slate-900 transition"
-        >
-          Book a Demo
-        </a>
-        <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
-        <button 
-          onClick={() => setCurrentRoute('signup')}
-          className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm"
-        >
-          Get Started
-        </button>
-      </>
-    )}
-  </div>
+    </>
+  )}
+</div>
         
 
         
@@ -1089,36 +1088,29 @@ const handleCancelSubscription = async () => {
 
       {/* Mobile responsive menu dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col gap-4 text-sm font-bold text-slate-600">
-          <a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
-          <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
-          <button 
-            onClick={() => { setMobileMenuOpen(false); setShowContactModal(true); }} 
-            className="text-left hover:text-slate-900 transition font-sans"
-            id="landing-nav-contact-mobile"
-          >
-            Contact
-          </button>
-          {user ? (
-            <button 
-              onClick={() => { setMobileMenuOpen(false); setCurrentRoute('dashboard'); }}
-              className="text-left py-2 text-slate-900"
-            >
-              Enter Dashboard
-            </button>
-          ) : (
-            <>
-              <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signin'); }} className="text-left py-2">SignIn</button>
-              <button 
-                onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signup'); }}
-                className="rounded-xl bg-slate-800 text-white py-2.5 text-center px-4"
-              >
-                Get Started
-              </button>
-            </>
-          )}
-        </div>
-      )}
+  <div className="md:hidden bg-slate-50 border-b border-slate-200 px-6 py-4 flex flex-col gap-4 text-sm font-bold text-slate-600">
+    <a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
+    <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+    <button onClick={() => { setMobileMenuOpen(false); setShowContactModal(true); }} className="text-left hover:text-slate-900 transition font-sans" id="landing-nav-contact-mobile">
+      Contact
+    </button>
+    <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('demo'); }} className="text-left hover:text-blue-600 transition font-sans">
+      Demo
+    </button>
+    {user ? (
+      <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('dashboard'); }} className="text-left py-2 text-slate-900">
+        Enter Dashboard
+      </button>
+    ) : (
+      <>
+        <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signin'); }} className="text-left py-2">SignIn</button>
+        <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signup'); }} className="rounded-xl bg-slate-800 text-white py-2.5 text-center px-4">
+          Get Started
+        </button>
+      </>
+    )}
+  </div>
+)}
 
       {/* ─── HERO SECTION (TECH) ────────────────────────────────────────── */}
 <header className="relative max-w-5xl w-full mx-auto px-6 pt-16 pb-20 text-center">
@@ -1188,31 +1180,29 @@ const handleCancelSubscription = async () => {
   className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
 >
   {user ? (
-    <button
-      onClick={() => setCurrentRoute('dashboard')}
-      className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
-    >
+    <button onClick={() => setCurrentRoute('dashboard')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
       Enter Dashboard
       <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
     </button>
   ) : (
-    <button
-      onClick={() => setCurrentRoute('signup')}
-      className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
-    >
-      Get Started Instantly
-      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-    </button>
+    <>
+      <button onClick={() => setCurrentRoute('signup')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
+        Get Started Instantly
+        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+      </button>
+      <button
+        onClick={() => setCurrentRoute('demo')}
+        className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
+      >
+        <PlayCircle size={16} />
+        Watch Demo
+      </button>
+      <a href="https://calendly.com/rewakely/15min" className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2">
+        <Calendar size={16} />
+        Book a Demo
+      </a>
+    </>
   )}
-  <a
-    href="https://calendly.com/rewakely/15min"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
-  >
-    <Calendar size={16} />
-    Book a Demo
-  </a>
 </motion.div>
 </header>
 
@@ -1268,11 +1258,21 @@ const handleCancelSubscription = async () => {
           <p className="text-sm text-slate-500 leading-relaxed font-sans">{feat.desc}</p>
         </motion.div>
       ))}
+        </div>
+    {/* Demo CTA Button */}
+    <div className="text-center mt-12">
+      <button
+        onClick={() => setCurrentRoute('demo')}
+        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 text-sm font-semibold transition shadow-sm shadow-indigo-500/25 hover:shadow-indigo-500/40"
+      >
+        <PlayCircle size={16} />
+        Watch How It Works
+      </button>
     </div>
   </div>
 </section>
 
-      {/* ✅ COMPARISON SECTION (ANIMATED) – Without vs With Rewakely */}
+{/* ✅ COMPARISON SECTION (ANIMATED) – Without vs With Rewakely */}
       <section className="relative py-20 px-6">
   <div className="max-w-6xl w-full mx-auto relative z-10">
           <motion.div
