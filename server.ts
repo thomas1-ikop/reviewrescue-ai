@@ -16,7 +16,73 @@ import nodemailer from 'nodemailer';
 import cors from 'cors';
 import crypto from 'crypto';
 import { Profile, Review, Invite, ReviewSource, ReviewStatus } from './src/types';
+import { z } from 'zod';
 
+const SignupSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  businessName: z.string().min(1, 'Business name is required').max(100),
+  action: z.literal('signup'),
+  rememberMe: z.boolean().optional(),
+});
+
+const SigninSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+  action: z.literal('signin'),
+  rememberMe: z.boolean().optional(),
+});
+
+const CustomerSchema = z.object({
+  customer_name: z.string().min(1, 'Customer name is required').max(100),
+  phone_number: z.string().optional().nullable(),
+  email: z.string().email('Invalid email').optional().nullable(),
+  visit_date: z.string().optional().nullable(),
+});
+
+const EmailInviteSchema = z.object({
+  customerName: z.string().min(1).max(100),
+  email: z.string().email('Invalid email address'),
+});
+
+const SmsInviteSchema = z.object({
+  customerName: z.string().min(1).max(100),
+  phoneNumber: z.string().min(7, 'Phone number is too short').max(20),
+});
+
+const ImportReviewSchema = z.object({
+  customerName: z.string().min(1).max(100),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).optional(),
+  source: z.enum(['manual', 'google']).default('manual'),
+});
+
+const ReplyReviewSchema = z.object({
+  reviewId: z.string().min(1),
+  replyText: z.string().min(1).max(2000),
+});
+
+const ProfileUpdateSchema = z.object({
+  business_name: z.string().min(1).max(100).optional(),
+  industry: z.string().max(50).optional(),
+  tone: z.string().max(50).optional(),
+  contact_email: z.string().email('Invalid email').optional(),
+  tour_completed: z.boolean().optional(),
+});
+
+const ContactSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email('Invalid email'),
+  message: z.string().min(1).max(5000),
+});
+
+const GenerateReplySchema = z.object({
+  reviewText: z.string().min(1).max(5000),
+  rating: z.number().int().min(1).max(5),
+  businessName: z.string().optional(),
+  industry: z.string().optional(),
+  tone: z.string().optional(),
+});
 
 
 declare global {
@@ -85,6 +151,25 @@ export const requirePlan = (requiredPlan: PlanTier) => {
     }
   };
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // -------------------- AUTHENTICATION MIDDLEWARE --------------------
@@ -161,16 +246,45 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
      
       const session = event.data.object;
       const userId = session.client_reference_id || session.metadata?.userId;
+      const planFromMetadata = session.metadata?.plan || 'pro';
+      const customerId = session.customer;
 
-       console.log(`[STRIPE] Webhook received: ${event.type} for user ${userId || 'unknown'}`);
-        console.log(`[STRIPE] User ${userId} upgraded to ${session.metadata?.plan || 'unknown'} plan`);
+      console.log(`[STRIPE] Webhook received: ${event.type} for user ${userId || 'unknown'}`);
+      console.log(`[STRIPE] User ${userId} upgraded to ${planFromMetadata} plan`);
 
       if (!userId) {
         console.error('❌ No userId found in checkout session');
         return res.status(400).send('Missing userId');
       }
 
-      // ✅ VALIDATE USER EXISTS BEFORE UPDATING
+      // ─── IDEMPOTENCY CHECK ──────────────────────────────────────────
+      // If this customer already has an active subscription with the same plan,
+      // we've already processed this webhook. Skip to avoid double-updating.
+      const { data: existingProfile, error: existingError } = await supabaseServiceClient
+        .from('profiles')
+        .select('id, subscription_status, subscription_plan, stripe_customer_id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('❌ Error checking existing profile:', existingError);
+        // Don't return error – proceed with update to be safe
+      }
+
+      if (existingProfile) {
+        const isAlreadyActive = 
+          existingProfile.subscription_status === 'active' &&
+          existingProfile.subscription_plan === planFromMetadata &&
+          existingProfile.stripe_customer_id === customerId;
+
+        if (isAlreadyActive) {
+          console.log(`✅ [Idempotent] User ${userId} already active on ${planFromMetadata} – skipping duplicate webhook`);
+          return res.json({ received: true, already_processed: true });
+        }
+      }
+      // ─── END IDEMPOTENCY CHECK ──────────────────────────────────────
+
+      // ✅ VALIDATE USER EXISTS BEFORE UPDATING (already did above, but keeping original check for safety)
       const { data: existingUser, error: checkError } = await supabaseServiceClient
         .from('profiles')
         .select('id')
@@ -189,19 +303,16 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
       console.log(`🔴 User ${userId} found – updating to active...`);
 
-      // ─── GET PLAN FROM METADATA ──────────────────────────────────────
-const planFromMetadata = session.metadata?.plan || 'pro';
-
-const { data: updatedProfile, error: updateError } = await supabaseServiceClient
-  .from('profiles')
-  .update({
-    subscription_status: 'active',
-    subscription_plan: planFromMetadata,
-    stripe_customer_id: session.customer,
-  })
-  .eq('id', userId)
-  .select()
-  .single();
+      const { data: updatedProfile, error: updateError } = await supabaseServiceClient
+        .from('profiles')
+        .update({
+          subscription_status: 'active',
+          subscription_plan: planFromMetadata,
+          stripe_customer_id: customerId,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
 
       if (updateError) {
         console.error('❌ Update error:', updateError);
@@ -215,7 +326,7 @@ const { data: updatedProfile, error: updateError } = await supabaseServiceClient
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object;
       const customerId = subscription.customer;
-       console.log(`[STRIPE] Subscription cancelled for customer ${customerId}`);
+      console.log(`[STRIPE] Subscription cancelled for customer ${customerId}`);
       
       if (customerId) {
         const { data: matchedProfiles } = await supabaseServiceClient
@@ -260,8 +371,42 @@ const limiter = rateLimit({
 
 // here1
 
+// ─── SIMPLE INPUT SANITIZATION (5-minute fix) ──────────────────────
+app.use((req, res, next) => {
+  // Only for POST/PUT/PATCH requests
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    // Recursively sanitize all string values
+    const sanitize = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(sanitize);
+      
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+          // Trim whitespace, prevent leading/trailing spaces
+          result[key] = value.trim();
+          // Prevent extremely long strings (over 5000 chars)
+          if (result[key].length > 5000) {
+            result[key] = result[key].substring(0, 5000);
+          }
+        } else if (value && typeof value === 'object') {
+          result[key] = sanitize(value);
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    };
+    
+    req.body = sanitize(req.body);
+  }
+  next();
+});
+
 app.post('/api/user/auth', async (req, res) => {
   const { email, password, businessName, action, manualUserId } = req.body;
+
+  
 
   if (!supabaseClient) {
     return res.status(500).json({ error: 'Supabase client is not initialized or credentials are missing.' });
@@ -1808,7 +1953,7 @@ async function getReviews(userId: string) {
 async function insertReview(review: any) {
   // Use service role client to bypass RLS
   const client = supabaseServiceClient || supabaseClient;
-  if (!client) {
+  if (!supabaseClient) {
     throw new Error('No Supabase client available.');
   }
   const { data, error } = await client
