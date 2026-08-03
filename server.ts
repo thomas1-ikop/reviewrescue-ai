@@ -212,6 +212,92 @@ const PORT = 3000;
 
 app.set('trust proxy', 1);
 
+// ─── ALLOWED ORIGINS ──────────────────────────────────────────────
+const allowedOrigins = [
+  'https://rewakely.com',
+  'http://localhost:3000',
+  'https://rewakely.onrender.com',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173'
+];
+
+
+// ─── MIDDLEWARE (MUST BE BEFORE ROUTES) ──────────────────────────────
+
+// 1. JSON PARSER - Reads request bodies
+app.use(express.json({
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// 3. SECURITY HEADERS
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// 4. REQUEST LOGGING
+app.use((req, res, next) => {
+  const start = Date.now();
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
+  });
+  next();
+});
+
+
+// 6. RATE LIMITING - Auth (5 attempts per 15 min)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  skip: (req) => !req.path.includes('/api/user/auth'),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(authLimiter);
+
+// 7. INPUT SANITIZATION - Cleans request bodies
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const sanitize = (obj: any): any => {
+      if (!obj || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(sanitize);
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === 'string') {
+          result[key] = value.trim();
+          if (result[key].length > 5000) {
+            result[key] = result[key].substring(0, 5000);
+          }
+        } else if (value && typeof value === 'object') {
+          result[key] = sanitize(value);
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    };
+    req.body = sanitize(req.body);
+  }
+  next();
+});
+
 
 
 // ─── STRIPE WEBHOOK (RAW BODY REQUIRED) ───
@@ -656,6 +742,24 @@ app.get('/api/verify', async (req, res) => {
     </html>
   `);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // here3
 
@@ -1566,96 +1670,16 @@ app.post('/api/log-demo-event', async (req, res) => {
 
 
 
-app.use('/api/', authenticate);
+ 
 
 
 
 
 
 
+ 
 
-
-// Apply to all API routes
-app.use('/api/', limiter);
-
-// ─── STRICT RATE LIMITING FOR AUTH (Prevent Brute Force) ────────────
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Only 5 login attempts per IP per 15 minutes
-  message: {
-    error: 'Too many login attempts. Try again in 15 minutes.'
-  }, 
-  skip: (req) => {
-    // Skip rate limiting for non-auth routes
-    return !req.path.includes('/api/user/auth');
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Apply auth limiter BEFORE the general limiter
-app.use(authLimiter);
-
-// -------------------- CORS RESTRICTIONS --------------------
-
-
-// Allow only your domain + localhost (for development)
-const allowedOrigins = [
-  'https://rewakely.com',
-  'http://localhost:3000',
-  'https://rewakely.onrender.com', // ✅ Add this
-  'http://localhost:5173',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173'
-];
-
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true, // Allow cookies/auth headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'] // ✅ Keep for backward compat (though we're phasing out x-user-id)
-}));
-
-// Security headers (you already have these)
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
-
-// -------------------- REQUEST LOGGING --------------------
-app.use((req, res, next) => {
-  const start = Date.now();
-
-  // Log the request
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
-
-  // Log the response time when the request finishes
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} in ${duration}ms`);
-  });
-
-  next();
-});
-
-
-app.use(express.json({
-  verify: (req: any, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-
-
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
+ 
   
 // -------------------- IN-MEMORY DATABASE FALLBACK --------------------
 interface InMemDB {
@@ -2275,7 +2299,7 @@ app.get('/api/zapier/verify', async (req, res) => {
 
 
 
-
+app.use('/api/', authenticate);
 
 // ─── SEND PASSWORD RESET EMAIL ──────────────────────────────────
 async function sendPasswordResetEmail(email: string, resetLink: string): Promise<{ success: boolean; error?: string }> {
