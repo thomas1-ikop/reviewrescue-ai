@@ -237,11 +237,16 @@ useEffect(() => {
 
   // ===== RESTORE SESSION =====
   let restoredUser = null;
-  
+
   // 1. Try loadPersistedUserSession
-  restoredUser = loadPersistedUserSession();
-  
-  // 2. Fallback: Direct localStorage
+  try {
+    restoredUser = loadPersistedUserSession();
+    console.log('🔍 [App] loadPersistedUserSession result:', restoredUser);
+  } catch (e) {
+    console.error('❌ [App] loadPersistedUserSession error:', e);
+  }
+
+  // 2. Fallback: Direct localStorage check
   if (!restoredUser) {
     try {
       const direct = localStorage.getItem('reviewrescue_user');
@@ -254,13 +259,17 @@ useEffect(() => {
     }
   }
 
+  // 3. If we have a user, set it
   if (restoredUser) {
     setUser(restoredUser);
+    console.log('✅ [App] User restored with plan:', restoredUser.subscription_plan);
     if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
       setCurrentRoute('dashboard');
     }
   } else {
     console.log('❌ [App] No user found in storage');
+    // ✅ IMPORTANT: Do NOT create a default user here
+    setUser(null);
   }
 
   // ===== HASH HANDLING =====
