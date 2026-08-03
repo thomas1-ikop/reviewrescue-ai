@@ -234,26 +234,34 @@ useEffect(() => {
     return;
   }
 
+  // ===== RESTORE SESSION =====
   let restoredUser = null;
+  let accessToken = null;
 
+  // 1. Try loadPersistedUserSession
   try {
-    restoredUser = loadPersistedUserSession();
+    const session = loadPersistedUserSession();
+    restoredUser = session.user; // ✅ Extract the user from the object
+    accessToken = session.accessToken;
+    console.log('🔍 [App] loadPersistedUserSession result:', session);
   } catch (e) {
     console.error('❌ [App] loadPersistedUserSession error:', e);
   }
 
+  // 2. Fallback: Direct localStorage check (if the function failed)
   if (!restoredUser) {
     try {
       const direct = localStorage.getItem('reviewrescue_user');
       if (direct) {
         restoredUser = JSON.parse(direct);
+        console.log('✅ [App] Fallback: loaded directly from localStorage');
       }
     } catch (e) {
       console.error('❌ [App] Fallback failed:', e);
     }
   }
 
-  // ✅ CRITICAL: If no user, set user to null – DO NOT CREATE A DEFAULT USER
+  // 3. If we have a user, set it
   if (restoredUser) {
     setUser(restoredUser);
     console.log('✅ [App] User restored with plan:', restoredUser.subscription_plan);
@@ -262,7 +270,6 @@ useEffect(() => {
     }
   } else {
     console.log('❌ [App] No user found in storage');
-    // ✅ IMPORTANT: Set to null, NOT a default user
     setUser(null);
   }
 
@@ -281,7 +288,6 @@ useEffect(() => {
   window.addEventListener('hashchange', handleUrlHashRedirects);
   return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
 }, [currentRoute]);
-
     // Fetch feedback and invitations records once authenticated
     const fetchDashboardData = async (userId: string) => {
       setIsLoadingReviews(true);
@@ -446,16 +452,19 @@ useEffect(() => {
     }
 
     if (data.profile) {
-      setUser(data.profile);
-      persistUserSession(data.profile, rememberMe, data.access_token); // ✅ Pass access_token
+  setUser(data.profile);
+  
+  // ✅ Pass access token if available
+  const accessToken = data.accessToken || null;
+  persistUserSession(data.profile, rememberMe, accessToken);
 
-      if (!data.profile.onboarded) {
-        setShowOnboarding(true);
-      } else {
-        setCurrentRoute('dashboard');
-      }
-      triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
-    } else {
+  if (!data.profile.onboarded) {
+    setShowOnboarding(true);
+  } else {
+    setCurrentRoute('dashboard');
+  }
+  triggerToast(`Success: Signed in as ${data.profile.email}`, 'success');
+} else {
         console.log('❌ No profile in response'); // 👈 ADD THIS
       }
     } else {
