@@ -4040,17 +4040,31 @@ app.post('/api/user/autopilot-toggle', requirePlan('pro'), async (req, res) => {
 });
 
 // -------------------- GOOGLE OAUTH ROUTES --------------------
-app.get('/api/auth/google', (req, res) => {
-  const userId = req.userId; // <-- From global auth
+app.get('/api/auth/google', async (req, res) => {
+  // ✅ Check both the Authorization header (if available) AND the token query param (for popup)
+  let userId = req.userId; // From global auth
+
+  // If no userId from token (popup case), check query param
+  if (!userId) {
+    const queryToken = req.query.token as string;
+    if (queryToken) {
+      try {
+        const { data: { user }, error } = await supabaseServiceClient.auth.getUser(queryToken);
+        if (!error && user) {
+          userId = user.id;
+        }
+      } catch (err) {
+        console.warn('Token validation failed:', err);
+      }
+    }
+  }
+
   if (!userId) {
     return res.status(401).send('Authentication required to connect Google.');
   }
 
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   
-  if (!userId) {
-    return res.status(400).send('userId query parameter or x-user-id header is required.');
-  }
   if (!clientId) {
     return res.status(400).send('OAuth setup error: GOOGLE_OAUTH_CLIENT_ID is not configured in secrets.');
   }

@@ -92,29 +92,33 @@ useEffect(() => {
 }, []);
 
   const handleConnectGmb = () => {
-    const width = 600;
-    const height = 650;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-    
-    const popup = window.open(
-      `/api/auth/google?userId=${profile.id}`,
-      'Connect Google My Business',
-      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes`
-    );
+  const width = 600;
+  const height = 650;
+  const left = window.screen.width / 2 - width / 2;
+  const top = window.screen.height / 2 - height / 2;
 
-    const messageListener = (event: MessageEvent) => {
-  if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
-    fetchGmbStatus();
-    fetchStatsAndLogs();
-    // ✅ Force a re-render to update the UI
-    setGmbConnected(true); // Optimistic update
-    toast('✅ Google My Business connected successfully!', 'success');
+  // ✅ Get the token from localStorage or sessionStorage
+  let token = localStorage.getItem('reviewrescue_access_token');
+  if (!token) {
+    token = sessionStorage.getItem('reviewrescue_access_token');
   }
-};
+  
+  const popup = window.open(
+    `/api/auth/google?userId=${profile.id}&token=${token}`,
+    'Connect Google My Business',
+    `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes`
+  );
 
-    window.addEventListener('message', messageListener);
+  const messageListener = (event: MessageEvent) => {
+    if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+      fetchGmbStatus();
+      fetchStatsAndLogs();
+      setGmbConnected(true);
+      toast('✅ Google My Business connected successfully!', 'success');
+    }
   };
+  window.addEventListener('message', messageListener);
+};
 
   // ─── DISCONNECT HANDLERS ──────────────────────────────────────
 const handleDisconnectClick = () => {
