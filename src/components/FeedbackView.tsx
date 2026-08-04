@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { ThumbsUp, Star, Calendar, AlertCircle } from 'lucide-react';
 import { Profile } from '../types';
 import { SkeletonFeedbackList } from './SkeletonCard';
+import { getAuthHeaders } from '../lib/api';
 
 interface FeedbackSubmission {
   id: string;
@@ -32,7 +33,7 @@ export default function FeedbackView({ profile }: FeedbackViewProps) {
   try {
     console.log('🔍 Fetching feedback for user:', profile.id);
     const res = await fetch('/api/feedback/submissions', {
-      headers: { 'x-user-id': profile.id }
+      headers: getAuthHeaders()
     });
     console.log('📡 Response status:', res.status);
     const data = await res.json();
