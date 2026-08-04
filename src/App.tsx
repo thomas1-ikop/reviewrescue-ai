@@ -49,10 +49,16 @@ import BillingView from './components/BillingView';
   import { supabaseClient } from './lib/supabaseClient';
 import DemoLandingPage from './components/DemoLandingPage';
 
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
-});
+const getAuthHeaders = () => {
+  let token = localStorage.getItem('reviewrescue_access_token');
+  if (!token) {
+    token = sessionStorage.getItem('reviewrescue_access_token');
+  }
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+};
 
 
   export default function App() {
