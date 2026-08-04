@@ -12,7 +12,7 @@ import {
   updateStoredUser,
   clearUserSession
 } from './lib/authStorage';
-
+import AboutView from './components/AboutView'; 
 import BillingView from './components/BillingView';
 
 
@@ -898,6 +898,9 @@ const handleCancelSubscription = async () => {
   if (currentRoute === 'reset-password') {
     return <ResetPasswordView />;
   }
+  if (currentRoute === 'about') {
+  return <AboutView setCurrentRoute={setCurrentRoute} />;
+}
 
 
     return (
@@ -1068,11 +1071,17 @@ const handleCancelSubscription = async () => {
   >
     Contact
   </button>
+  <button 
+  onClick={() => setCurrentRoute('about')} 
+  className="hover:text-slate-900 transition text-sm font-semibold text-slate-600"
+>
+  My Story
+</button>
   <button
     onClick={() => setCurrentRoute('demo')}
     className="hover:text-blue-600 transition font-sans cursor-pointer"
   >
-    Demo
+    Demo Video
   </button>
   {user ? (
     <button onClick={() => setCurrentRoute('dashboard')} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm">
@@ -1081,7 +1090,7 @@ const handleCancelSubscription = async () => {
   ) : (
     <>
       <a href="https://calendly.com/rewakely/15min" className="hover:text-slate-900 transition">
-        Book a Demo
+        Book a Meeting
       </a>
       <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
       <button onClick={() => setCurrentRoute('signup')} className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm">
@@ -1108,6 +1117,12 @@ const handleCancelSubscription = async () => {
     <button onClick={() => { setMobileMenuOpen(false); setShowContactModal(true); }} className="text-left hover:text-slate-900 transition font-sans" id="landing-nav-contact-mobile">
       Contact
     </button>
+    <button 
+  onClick={() => { setMobileMenuOpen(false); setCurrentRoute('about'); }} 
+  className="text-left hover:text-slate-900 transition text-sm font-bold text-slate-600 py-2"
+>
+  My Story
+</button>
     <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('demo'); }} className="text-left hover:text-blue-600 transition font-sans">
       Demo
     </button>
@@ -1213,7 +1228,7 @@ const handleCancelSubscription = async () => {
       </button>
       <a href="https://calendly.com/rewakely/15min" className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2">
         <Calendar size={16} />
-        Book a Demo
+        Book a Meeting
       </a>
     </>
   )}
@@ -1588,6 +1603,12 @@ const handleCancelSubscription = async () => {
             >
               Terms of Service
             </button>
+            <button 
+  onClick={() => setCurrentRoute('about')} 
+  className="hover:text-slate-900 transition"
+>
+  About
+</button>
             <a href="#" className="hover:text-slate-900 transition">Contact</a>
           </div>
           <span>&copy; 2026 Rewakely. All rights reserved.</span>
