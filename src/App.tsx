@@ -264,10 +264,8 @@ useEffect(() => {
       try {
         // 1. Reviews
         const revRes = await fetch('/api/reviews', {
-           headers: {
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  }
-        });
+  headers: getAuthHeaders()
+});
         const revData = await revRes.json();
         if (revData.reviews) {
           setReviews(revData.reviews);
@@ -364,10 +362,7 @@ useEffect(() => {
 
         await fetch('/api/user/tour-complete', {
           method: 'POST',
-          headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+          headers: getAuthHeaders(),
   body: JSON.stringify({}) // ✅ Empty body (userId now in headers)
         });
       } catch (err) {
@@ -462,10 +457,7 @@ useEffect(() => {
       try {
         const res = await fetch('/api/user/onboarding', {
           method: 'POST',
-          headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+          headers: getAuthHeaders(),
   body: JSON.stringify({
     businessName: data.business_name,
     industry: data.industry,
@@ -514,28 +506,23 @@ useEffect(() => {
     };
 
     // Manual Review Import
-    const handleImportReview = async (reviewData: { customerName: string; rating: number; comment: string; source: ReviewSource }) => {
+   const handleImportReview = async (reviewData: { customerName: string; rating: number; comment: string; source: ReviewSource }) => {
   if (!user) return;
   try {
-    const token = localStorage.getItem('reviewrescue_access_token');
     const res = await fetch('/api/reviews/import', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(reviewData)
     });
-      const data = await res.json();
-      if (data.review) {
-        setReviews(prev => [data.review, ...prev]);
-        triggerToast(`Review for ${reviewData.customerName} imported.`, 'success');
-        // ✅ REMOVED the negative alert block
-      }
-    } catch (err) {
-      console.error(err);
+    const data = await res.json();
+    if (data.review) {
+      setReviews(prev => [data.review, ...prev]);
+      triggerToast(`Review for ${reviewData.customerName} imported.`, 'success');
     }
-  };
+  } catch (err) {
+    console.error(err);
+  }
+};
 
     // Generate Reply with Gemini AI
     const handleGenerateReplyResponse = async (review: Review): Promise<string | null> => {
@@ -543,10 +530,7 @@ useEffect(() => {
   try {
     const res = await fetch('/api/reviews/generate', {
       method: 'POST',
-       headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+       headers: getAuthHeaders(),
   body: JSON.stringify({
     reviewText: review.comment,
     rating: review.rating,
@@ -585,10 +569,7 @@ useEffect(() => {
       try {
         const res = await fetch('/api/reviews/reply', {
           method: 'POST',
-           headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+            headers: getAuthHeaders(),
   body: JSON.stringify({ reviewId, replyText })
         });
         const data = await res.json();
@@ -607,10 +588,7 @@ useEffect(() => {
       try {
         const res = await fetch('/api/sms/send-invite', {
           method: 'POST',
-            headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+         headers: getAuthHeaders(),
   body: JSON.stringify({ customerName, phoneNumber })
         });
         const data = await res.json();
@@ -715,10 +693,7 @@ const handleCancelSubscription = async () => {
       try {
         const res = await fetch('/api/reviews/simulate-google', {
           method: 'POST',
-          headers: {
-  'Authorization': `Bearer ${getAuthHeaders()}`,
-  'Content-Type': 'application/json'
-}
+          headers: getAuthHeaders()
         });
         const data = await res.json();
         if (data.reviews) {
@@ -755,10 +730,7 @@ const handleCancelSubscription = async () => {
         try {
           const res = await fetch(`/api/reviews/${reviewId}`, {
             method: 'DELETE',
-            headers: {
-  'Authorization': `Bearer ${getAuthHeaders()}`,
-  'Content-Type': 'application/json'
-}
+            headers: getAuthHeaders()
           });
           if (res.ok) {
             setReviews(prev => prev.filter(r => r.id !== reviewId));
@@ -789,10 +761,7 @@ const handleCancelSubscription = async () => {
         try {
           const res = await fetch('/api/reviews/clear', {
             method: 'DELETE',
-            headers: {
-  'Authorization': `Bearer ${getAuthHeaders()}`,
-  'Content-Type': 'application/json'
-}
+            headers: getAuthHeaders()
           });
           if (res.ok) {
             setReviews([]);
@@ -819,10 +788,7 @@ const handleCancelSubscription = async () => {
     try {
       const res = await fetch('/api/user/profile', {
         method: 'POST',
-       headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${getAuthHeaders()}`
-  },
+        headers: getAuthHeaders(),
   body: JSON.stringify({
     business_name: data.business_name,
     industry: data.industry,
