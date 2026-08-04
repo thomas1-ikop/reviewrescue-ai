@@ -53,21 +53,22 @@ import DemoLandingPage from './components/DemoLandingPage';
   export default function App() {
     // Navigation & Route State
     const [currentRoute, setCurrentRoute] = useState<string>(() => {
-    const path = window.location.pathname;
-    if (path === '/review' || path.startsWith('/review/')) {
-      return 'review';
-    }
-    if (path === '/privacy') {
-      return 'privacy';
-    }
-    if (path === '/terms') {
-      return 'terms';
-    }
-    if (path === '/reset-password') {
-      return 'reset-password';
-    }
-    return 'landing';
-  });
+  const path = window.location.pathname;
+  if (path === '/review' || path.startsWith('/review/')) return 'review';
+  if (path === '/privacy') return 'privacy';
+  if (path === '/terms') return 'terms';
+  if (path === '/reset-password') return 'reset-password';
+  if (path === '/about') return 'about'; // ✅ Added this
+  return 'landing';
+});
+
+// ─── CUSTOM NAVIGATION FUNCTION (UPDATES THE URL BAR) ───
+const navigateTo = (route: string) => {
+  setCurrentRoute(route);
+  // If route is 'landing', go to '/' else go to '/route'
+  const path = route === 'landing' ? '/' : `/${route}`;
+  window.history.pushState(null, '', path);
+};
     const [currency, setCurrency] = useState<'USD' | 'EUR'>('USD');
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -229,65 +230,22 @@ useEffect(() => {
 
     // Sync state with address hash routing, perfect for sandbox refreshing
    useEffect(() => {
-  const publicRoutes = ['privacy', 'terms', 'review', 'reset-password'];
-  if (publicRoutes.includes(currentRoute)) {
-    return;
-  }
-
-  // ===== RESTORE SESSION =====
-  let restoredUser = null;
-  let accessToken = null;
-
-  // 1. Try loadPersistedUserSession
-  try {
-    const session = loadPersistedUserSession();
-    restoredUser = session.user; // ✅ Extract the user from the object
-    accessToken = session.accessToken;
-    console.log('🔍 [App] loadPersistedUserSession result:', session);
-  } catch (e) {
-    console.error('❌ [App] loadPersistedUserSession error:', e);
-  }
-
-  // 2. Fallback: Direct localStorage check (if the function failed)
-  if (!restoredUser) {
-    try {
-      const direct = localStorage.getItem('reviewrescue_user');
-      if (direct) {
-        restoredUser = JSON.parse(direct);
-        console.log('✅ [App] Fallback: loaded directly from localStorage');
-      }
-    } catch (e) {
-      console.error('❌ [App] Fallback failed:', e);
-    }
-  }
-
-  // 3. If we have a user, set it
-  if (restoredUser) {
-    setUser(restoredUser);
-    console.log('✅ [App] User restored with plan:', restoredUser.subscription_plan);
-    if (currentRoute === 'landing' || currentRoute === 'signin' || currentRoute === 'signup') {
-      setCurrentRoute('dashboard');
-    }
-  } else {
-    console.log('❌ [App] No user found in storage');
-    setUser(null);
-  }
-
-  // ===== HASH HANDLING =====
-  const handleUrlHashRedirects = () => {
-    const hash = window.location.hash;
-    if (!hash) return;
-    const params = new URLSearchParams(hash.substring(hash.indexOf('?') + 1));
-    const routeParam = params.get('currentRoute');
-    if (routeParam) {
-      setCurrentRoute(routeParam);
-    }
+  // Handle the browser back/forward buttons
+  const handlePopState = () => {
+    const path = window.location.pathname;
+    if (path === '/review' || path.startsWith('/review/')) setCurrentRoute('review');
+    else if (path === '/privacy') setCurrentRoute('privacy');
+    else if (path === '/terms') setCurrentRoute('terms');
+    else if (path === '/reset-password') setCurrentRoute('reset-password');
+    else if (path === '/about') setCurrentRoute('about');
+    else setCurrentRoute('landing');
   };
 
-  handleUrlHashRedirects();
-  window.addEventListener('hashchange', handleUrlHashRedirects);
-  return () => window.removeEventListener('hashchange', handleUrlHashRedirects);
-}, [currentRoute]);
+  window.addEventListener('popstate', handlePopState);
+  return () => window.removeEventListener('popstate', handlePopState);
+}, []);
+
+
     // Fetch feedback and invitations records once authenticated
     const fetchDashboardData = async (userId: string) => {
       setIsLoadingReviews(true);
@@ -884,7 +842,7 @@ const handleCancelSubscription = async () => {
     const repliedCountThisMonth = reviews.filter(r => r.status === 'replied' && !r.is_autopilot).length;
 
   if (currentRoute === 'demo') {
-  return <DemoLandingPage setCurrentRoute={setCurrentRoute} />;
+  return <DemoLandingPage setCurrentRoute={navigateTo} />;
 }
     if (currentRoute === 'review') {
       return <PublicReviewView />;
@@ -899,7 +857,7 @@ const handleCancelSubscription = async () => {
     return <ResetPasswordView />;
   }
   if (currentRoute === 'about') {
-  return <AboutView setCurrentRoute={setCurrentRoute} />;
+  return <AboutView setCurrentRoute={navigateTo} />;
 }
 
 
@@ -1055,7 +1013,7 @@ const handleCancelSubscription = async () => {
       {/* Header */}
       <nav className="max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between border-b border-slate-150">
   <button 
-    onClick={() => setCurrentRoute('landing')} 
+    onClick={() => navigateTo('landing')} 
     className="hover:opacity-80 transition-opacity"
   >
     <Logo />
@@ -1072,7 +1030,7 @@ const handleCancelSubscription = async () => {
     Contact
   </button>
   <button 
-  onClick={() => setCurrentRoute('about')} 
+  onClick={() => navigateTo('about')} 
   className="hover:text-slate-900 transition text-sm font-semibold text-slate-600"
 >
   My Story
@@ -1084,7 +1042,7 @@ const handleCancelSubscription = async () => {
     Demo Video
   </button>
   {user ? (
-    <button onClick={() => setCurrentRoute('dashboard')} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm">
+    <button onClick={() => navigateTo('dashboard')} className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4.5 py-2 transition shadow-sm">
       Enter Dashboard
     </button>
   ) : (
@@ -1093,7 +1051,7 @@ const handleCancelSubscription = async () => {
         Book a Meeting
       </a>
       <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
-      <button onClick={() => setCurrentRoute('signup')} className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm">
+      <button onClick={() => navigateTo('signup')} className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm">
         Get Started
       </button>
     </>
@@ -1209,13 +1167,13 @@ const handleCancelSubscription = async () => {
   className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
 >
   {user ? (
-    <button onClick={() => setCurrentRoute('dashboard')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
+    <button onClick={() => navigateTo('dashboard')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
       Enter Dashboard
       <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
     </button>
   ) : (
     <>
-      <button onClick={() => setCurrentRoute('signup')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
+      <button onClick={() => navigateTo('signup')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
         Get Started Instantly
         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
       </button>
@@ -1604,7 +1562,7 @@ const handleCancelSubscription = async () => {
               Terms of Service
             </button>
             <button 
-  onClick={() => setCurrentRoute('about')} 
+  onClick={() => navigateTo('about')} 
   className="hover:text-slate-900 transition"
 >
   About
@@ -1628,7 +1586,7 @@ const handleCancelSubscription = async () => {
               
               {/* Top Brand Logo */}
               <div className="relative z-10 flex items-center justify-between">
-                <button onClick={() => setCurrentRoute('landing')} className="inline-block hover:scale-105 transition-transform">
+                <button onClick={() => navigateTo('landing')} className="inline-block hover:scale-105 transition-transform">
                   <Logo size="md" />
                 </button>
                 <span className="p-1 px-2.5 bg-slate-800 text-slate-300 border border-slate-700/80 rounded-full font-mono text-[9px] font-bold uppercase tracking-widest bg-slate-805/60">
@@ -1679,14 +1637,14 @@ const handleCancelSubscription = async () => {
               <div className="w-full max-w-md space-y-6">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                   <button 
-                    onClick={() => setCurrentRoute('landing')} 
+                    onClick={() => navigateTo('landing')} 
                     className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition"
                     id="auth-back-home"
                   >
                     <ArrowLeft size={14} />
                     Back to Home Page
                   </button>
-                  <button onClick={() => setCurrentRoute('landing')} className="inline-block hover:scale-105 transition-transform">
+                  <button onClick={() => navigateTo('landing')} className="inline-block hover:scale-105 transition-transform">
                     <Logo size="sm" />
                   </button>
                 </div>
@@ -1853,7 +1811,7 @@ const handleCancelSubscription = async () => {
   {user && currentRoute !== 'landing' && currentRoute !== 'signup' && currentRoute !== 'signin' && (
     <DashboardLayout
       currentRoute={currentRoute}
-      setCurrentRoute={setCurrentRoute}
+      setCurrentRoute={navigateTo}
       user={user}
       onLogout={handleSignOut}
       negativeAlerts={negativeAlerts}
