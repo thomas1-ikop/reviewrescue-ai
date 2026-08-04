@@ -2302,6 +2302,53 @@ app.get('/api/zapier/verify', async (req, res) => {
 });
 
 
+// -------------------- GOOGLE OAUTH ROUTES --------------------
+app.get('/api/auth/google', async (req, res) => {
+  // ✅ Check both the Authorization header (if available) AND the token query param (for popup)
+  let userId = req.userId; // From global auth
+
+  // If no userId from token (popup case), check query param
+  if (!userId) {
+    const queryToken = req.query.token as string;
+    if (queryToken) {
+      try {
+        const { data: { user }, error } = await supabaseServiceClient.auth.getUser(queryToken);
+        if (!error && user) {
+          userId = user.id;
+        }
+      } catch (err) {
+        console.warn('Token validation failed:', err);
+      }
+    }
+  }
+
+  if (!userId) {
+    return res.status(401).send('Authentication required to connect Google.');
+  }
+
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
+  
+  if (!clientId) {
+    return res.status(400).send('OAuth setup error: GOOGLE_OAUTH_CLIENT_ID is not configured in secrets.');
+  }
+
+  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
+  const scope = 'https://www.googleapis.com/auth/business.manage';
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: scope,
+    access_type: 'offline',
+    prompt: 'consent',
+    state: userId as string
+  }).toString();
+
+  res.redirect(authUrl);
+});
+
+
 
 app.use('/api/', authenticate);
 
@@ -4039,51 +4086,7 @@ app.post('/api/user/autopilot-toggle', requirePlan('pro'), async (req, res) => {
   }
 });
 
-// -------------------- GOOGLE OAUTH ROUTES --------------------
-app.get('/api/auth/google', async (req, res) => {
-  // ✅ Check both the Authorization header (if available) AND the token query param (for popup)
-  let userId = req.userId; // From global auth
 
-  // If no userId from token (popup case), check query param
-  if (!userId) {
-    const queryToken = req.query.token as string;
-    if (queryToken) {
-      try {
-        const { data: { user }, error } = await supabaseServiceClient.auth.getUser(queryToken);
-        if (!error && user) {
-          userId = user.id;
-        }
-      } catch (err) {
-        console.warn('Token validation failed:', err);
-      }
-    }
-  }
-
-  if (!userId) {
-    return res.status(401).send('Authentication required to connect Google.');
-  }
-
-  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
-  
-  if (!clientId) {
-    return res.status(400).send('OAuth setup error: GOOGLE_OAUTH_CLIENT_ID is not configured in secrets.');
-  }
-
-  const redirectUri = `https://rewakely.com/api/auth/google/callback`;
-  const scope = 'https://www.googleapis.com/auth/business.manage';
-
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: scope,
-    access_type: 'offline',
-    prompt: 'consent',
-    state: userId as string
-  }).toString();
-
-  res.redirect(authUrl);
-});
 
 
 
