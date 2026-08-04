@@ -1,6 +1,10 @@
 // src/lib/api.ts
+// src/lib/api.ts
 export function getAuthHeaders() {
-  const token = localStorage.getItem('reviewrescue_access_token');
+  let token = localStorage.getItem('reviewrescue_access_token');
+  if (!token) {
+    token = sessionStorage.getItem('reviewrescue_access_token');
+  }
   return {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})

@@ -7,6 +7,7 @@ import {
 import QRCode from 'qrcode';
 import ReviewInvitesTour from './ReviewInvitesTour';
 import ConfirmModal from './ConfirmModal'; // 👈 Import the existing modal
+import { getAuthHeaders } from '../lib/api';
 import QRCodeLock from './QRCodeLock';
 
 interface ReviewInvitesViewProps {
@@ -199,10 +200,10 @@ useEffect(() => {
     setIsSendingEmail(true);
     try {
       const res = await fetch('/api/email/send-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-        body: JSON.stringify({ customerName: emailName.trim(), email: emailAddress.trim() }),
-      });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ customerName: emailName.trim(), email: emailAddress.trim() }),
+});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send');
       toast('✅ Email invite sent successfully!', 'success');
@@ -229,10 +230,10 @@ useEffect(() => {
     setIsSendingSms(true);
     try {
       const res = await fetch('/api/sms/send-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-        body: JSON.stringify({ customerName: smsName.trim(), phoneNumber: smsPhone.trim() }),
-      });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ customerName: smsName.trim(), phoneNumber: smsPhone.trim() }),
+});
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send');
       toast('✅ SMS invite sent successfully!', 'success');
@@ -263,10 +264,10 @@ useEffect(() => {
       if (!parseRes.ok || !parseData.customers) throw new Error('Failed to parse');
       const customers = parseData.customers;
       const scheduleRes = await fetch('/api/sms/schedule-customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': userId },
-        body: JSON.stringify({ customers }),
-      });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ customers }),
+});
       if (!scheduleRes.ok) {
         const errData = await scheduleRes.json();
         throw new Error(errData.error || 'Failed to schedule');
