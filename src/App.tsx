@@ -49,6 +49,11 @@ import BillingView from './components/BillingView';
   import { supabaseClient } from './lib/supabaseClient';
 import DemoLandingPage from './components/DemoLandingPage';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
+});
+
 
   export default function App() {
     // Navigation & Route State
@@ -254,7 +259,7 @@ useEffect(() => {
         // 1. Reviews
         const revRes = await fetch('/api/reviews', {
            headers: {
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   }
         });
         const revData = await revRes.json();
@@ -275,7 +280,7 @@ useEffect(() => {
         // 2. SMS Feedback invites
         const invRes = await fetch('/api/sms/invites', {
           headers: {
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   }
         });
         const invData = await invRes.json();
@@ -355,7 +360,7 @@ useEffect(() => {
           method: 'POST',
           headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({}) // ✅ Empty body (userId now in headers)
         });
@@ -411,9 +416,8 @@ useEffect(() => {
 
     if (data.profile) {
   setUser(data.profile);
-  
-  // ✅ Pass access token if available
-  const accessToken = data.accessToken || null;
+  // ✅ Correct: Use access_token (underscore)
+  const accessToken = data.access_token || null; 
   persistUserSession(data.profile, rememberMe, accessToken);
 
   if (!data.profile.onboarded) {
@@ -454,7 +458,7 @@ useEffect(() => {
           method: 'POST',
           headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({
     businessName: data.business_name,
@@ -505,16 +509,17 @@ useEffect(() => {
 
     // Manual Review Import
     const handleImportReview = async (reviewData: { customerName: string; rating: number; comment: string; source: ReviewSource }) => {
-    if (!user) return;
-    try {
-      const res = await fetch('/api/reviews/import', {
-        method: 'POST',
-         headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
-  },
-  body: JSON.stringify(reviewData)
-      });
+  if (!user) return;
+  try {
+    const token = localStorage.getItem('reviewrescue_access_token');
+    const res = await fetch('/api/reviews/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(reviewData)
+    });
       const data = await res.json();
       if (data.review) {
         setReviews(prev => [data.review, ...prev]);
@@ -534,7 +539,7 @@ useEffect(() => {
       method: 'POST',
        headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({
     reviewText: review.comment,
@@ -576,7 +581,7 @@ useEffect(() => {
           method: 'POST',
            headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({ reviewId, replyText })
         });
@@ -598,7 +603,7 @@ useEffect(() => {
           method: 'POST',
             headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({ customerName, phoneNumber })
         });
@@ -654,7 +659,7 @@ useEffect(() => {
         const res = await fetch('/api/stripe/create-checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, userId: user.id, email: user.email })
+          body: JSON.stringify({ plan, email: user.email })
         });
         const data = await res.json();
         if (data.url) {
@@ -705,7 +710,7 @@ const handleCancelSubscription = async () => {
         const res = await fetch('/api/reviews/simulate-google', {
           method: 'POST',
           headers: {
-  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Authorization': `Bearer ${getAuthHeaders()}`,
   'Content-Type': 'application/json'
 }
         });
@@ -745,7 +750,7 @@ const handleCancelSubscription = async () => {
           const res = await fetch(`/api/reviews/${reviewId}`, {
             method: 'DELETE',
             headers: {
-  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Authorization': `Bearer ${getAuthHeaders()}`,
   'Content-Type': 'application/json'
 }
           });
@@ -779,7 +784,7 @@ const handleCancelSubscription = async () => {
           const res = await fetch('/api/reviews/clear', {
             method: 'DELETE',
             headers: {
-  'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`,
+  'Authorization': `Bearer ${getAuthHeaders()}`,
   'Content-Type': 'application/json'
 }
           });
@@ -810,7 +815,7 @@ const handleCancelSubscription = async () => {
         method: 'POST',
        headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${loadPersistedUserSession().accessToken}`
+    'Authorization': `Bearer ${getAuthHeaders()}`
   },
   body: JSON.stringify({
     business_name: data.business_name,
@@ -1075,28 +1080,29 @@ const handleCancelSubscription = async () => {
     <button onClick={() => { setMobileMenuOpen(false); setShowContactModal(true); }} className="text-left hover:text-slate-900 transition font-sans" id="landing-nav-contact-mobile">
       Contact
     </button>
-    <button 
-  onClick={() => { setMobileMenuOpen(false); setCurrentRoute('about'); }} 
+    // ✅ Fix Mobile Menu Links
+<button 
+  onClick={() => { setMobileMenuOpen(false); navigateTo('about'); }} 
   className="text-left hover:text-slate-900 transition text-sm font-bold text-slate-600 py-2"
 >
   My Story
 </button>
-    <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('demo'); }} className="text-left hover:text-blue-600 transition font-sans">
-      Demo
+
+<button onClick={() => { setMobileMenuOpen(false); navigateTo('demo'); }} className="text-left hover:text-blue-600 transition font-sans">
+  Demo
+</button>
+{user ? (
+  <button onClick={() => { setMobileMenuOpen(false); navigateTo('dashboard'); }} className="text-left py-2 text-slate-900">
+    Enter Dashboard
+  </button>
+) : (
+  <>
+    <button onClick={() => { setMobileMenuOpen(false); navigateTo('signin'); }} className="text-left py-2">SignIn</button>
+    <button onClick={() => { setMobileMenuOpen(false); navigateTo('signup'); }} className="rounded-xl bg-slate-800 text-white py-2.5 text-center px-4">
+      Get Started
     </button>
-    {user ? (
-      <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('dashboard'); }} className="text-left py-2 text-slate-900">
-        Enter Dashboard
-      </button>
-    ) : (
-      <>
-        <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signin'); }} className="text-left py-2">SignIn</button>
-        <button onClick={() => { setMobileMenuOpen(false); setCurrentRoute('signup'); }} className="rounded-xl bg-slate-800 text-white py-2.5 text-center px-4">
-          Get Started
-        </button>
-      </>
-    )}
-  </div>
+  </>
+)}</div>
 )}
 
       {/* ─── HERO SECTION (TECH) ────────────────────────────────────────── */}
@@ -1549,18 +1555,8 @@ const handleCancelSubscription = async () => {
         <div className="max-w-6xl w-full mx-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-sans text-slate-400">
           <Logo size="sm" />
           <div className="flex gap-6">
-            <button 
-              onClick={() => setCurrentRoute('privacy')} 
-              className="hover:text-slate-900 transition"
-            >
-              Privacy Policy
-            </button>
-            <button 
-              onClick={() => setCurrentRoute('terms')} 
-              className="hover:text-slate-900 transition"
-            >
-              Terms of Service
-            </button>
+            <button onClick={() => navigateTo('privacy')} className="hover:text-slate-900 transition">Privacy Policy</button>
+<button onClick={() => navigateTo('terms')} className="hover:text-slate-900 transition">Terms of Service</button>
             <button 
   onClick={() => navigateTo('about')} 
   className="hover:text-slate-900 transition"
