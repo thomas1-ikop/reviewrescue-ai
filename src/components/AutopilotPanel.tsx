@@ -18,6 +18,7 @@ import { Profile } from '../types';
 import DisconnectModal from './DisconnectModal';
 import ToggleLock from './ToggleLock';
 import ConnectButtonLock from './ConnectButtonLock';
+import { apiFetch } from '../lib/api';
 
 interface AutopilotLog {
   id: string;
@@ -63,9 +64,7 @@ const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const fetchGmbStatus = async () => {
   try {
-    const res = await fetch('/api/google/status', {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-    });
+    const res = await apiFetch('/api/google/status');
     if (res.ok) {
       const data = await res.json();
       setGmbConnected(data.connected);
@@ -128,10 +127,9 @@ const handleDisconnectClick = () => {
 const handleDisconnectConfirm = async () => {
   setIsDisconnecting(true);
   try {
-    const response = await fetch('/api/google/disconnect', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-    });
+    const response = await apiFetch('/api/google/disconnect', {
+  method: 'POST'
+});
     if (response.ok) {
       setGmbConnected(false);
       setLocationName(null);
@@ -154,9 +152,7 @@ const handleDisconnectConfirm = async () => {
     setIsLoadingLogs(true);
     try {
       // 1. Fetch Stats
-      const statsRes = await fetch(`/api/autopilot/stats?userId=${profile.id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-      });
+      const statsRes = await apiFetch(`/api/autopilot/stats?userId=${profile.id}`);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setTotalReplies(statsData.totalAutoReplies);
@@ -165,18 +161,14 @@ const handleDisconnectConfirm = async () => {
       }
 
       // 2. Fetch Logs
-      const logsRes = await fetch(`/api/autopilot/logs?userId=${profile.id}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-      });
+      const logsRes = await apiFetch(`/api/autopilot/logs?userId=${profile.id}`);
       if (logsRes.ok) {
         const logsData = await logsRes.json();
         setLogs(logsData.logs || []);
       }
 
       // 3. Fetch All Reviews to find pending negative Google reviews (rating <= 3)
-      const reviewsRes = await fetch('/api/reviews', {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-      });
+      const reviewsRes = await apiFetch('/api/reviews');
       if (reviewsRes.ok) {
         const reviewsData = await reviewsRes.json();
         const allReviews = reviewsData.reviews || [];
@@ -194,10 +186,9 @@ const handleDisconnectConfirm = async () => {
 
   const handleSimulate = async () => {
   try {
-    const res = await fetch('/api/reviews/simulate-google', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}` }
-    });
+    const res = await apiFetch('/api/reviews/simulate-google', {
+  method: 'POST'
+});
     const data = await res.json();
     if (data.reviews) {
       toast('🎉 4 Simulated Google Reviews added!', 'success');
@@ -215,12 +206,8 @@ const handleDisconnectConfirm = async () => {
     if (!draftText) return;
     setIsReplyingToId(reviewId);
     try {
-      const res = await fetch('/api/reviews/reply', {
+     const res = await apiFetch('/api/reviews/reply', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
-  },
   body: JSON.stringify({ reviewId, replyText: draftText })
 });
       if (res.ok) {
@@ -253,13 +240,9 @@ const handleDisconnectConfirm = async () => {
     setIsToggling(true);
     const nextState = !isEnabled;
     try {
-      const res = await fetch('/api/user/autopilot-toggle', {
+      const res = await apiFetch('/api/user/autopilot-toggle', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
-  },
-  body: JSON.stringify({ enabled: nextState }) // ✅ Removed userId (now in headers)
+  body: JSON.stringify({ enabled: nextState })
 });
 
       if (res.ok) {
@@ -285,13 +268,9 @@ const handleDisconnectConfirm = async () => {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      const res = await fetch('/api/autopilot/sync', {
+      const res = await apiFetch('/api/autopilot/sync', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${localStorage.getItem('reviewrescue_access_token')}`
-  },
-  body: JSON.stringify({}) // ✅ Removed userId (now in headers)
+  body: JSON.stringify({})
 });
 
       if (res.ok) {
