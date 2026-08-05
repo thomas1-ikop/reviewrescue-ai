@@ -5,6 +5,7 @@ import ManualSendSection from './ManualSendSection';
 import AutoSendSection from './AutoSendSection';
 import type { SMSCollectorProps, ScheduledCustomer } from './sms.types';
 import SMSMessagePreview from './SMSMessagePreview';
+import { getAuthHeaders } from '../lib/api';
 import QRCode from 'qrcode';
 
 const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour }) => {
@@ -15,6 +16,7 @@ const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour 
   const [sentCount, setSentCount] = useState<number>(0);
   const [responseRate, setResponseRate] = useState<number | null>(null);
   const [scheduledCustomers, setScheduledCustomers] = useState<ScheduledCustomer[]>([]);
+
   const [nextSendDate, setNextSendDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
@@ -26,7 +28,7 @@ const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour 
   const fetchAutoSendState = useCallback(async () => {
     try {
       const res = await fetch('/api/sms/auto-send/state', {
-        headers: { 'x-user-id': userId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Failed to load auto-send state');
       const data: {
@@ -49,7 +51,7 @@ const SMSCollector: React.FC<SMSCollectorProps> = ({ userId, toast, onStartTour 
   const fetchScheduledCustomers = useCallback(async () => {
     try {
       const res = await fetch('/api/sms/scheduled-customers', {
-        headers: { 'x-user-id': userId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Failed to load scheduled customers');
       const data: { customers: ScheduledCustomer[] } = await res.json();
@@ -118,22 +120,14 @@ useEffect(() => {
 
   // ── QR Code Generation (runs once using userId only) ─────────────────────
 useEffect(() => {
-  if (userId && !qrGeneratedRef.current) {
-    qrGeneratedRef.current = true; // prevent re-run
-    // You need to fetch the user's place_id first
-// But for now, change to:
-const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
-    console.log('[QR] Generating QR code for URL:', url);
+  if (userId && placeId && !qrGeneratedRef.current) {
+    qrGeneratedRef.current = true;
+    const url = `https://search.google.com/local/writereview?placeid=${placeId}`;
     QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
-      if (!err) {
-        console.log('[QR] QR code generated successfully');
-        setQrCodeDataUrl(dataUrl);
-      } else {
-        console.error('[QR] QR code generation error:', err);
-      }
+      if (!err) setQrCodeDataUrl(dataUrl);
     });
   }
-}, [userId]); // ✅ Only depends on userId – no fetch needed!
+}, [userId, placeId]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (

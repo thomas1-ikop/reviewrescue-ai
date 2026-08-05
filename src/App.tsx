@@ -392,7 +392,7 @@ useEffect(() => {
   try {
     const res = await fetch('/api/user/auth', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         email: authEmail,
         password: authPassword,
@@ -641,10 +641,10 @@ useEffect(() => {
       triggerToast(`Initiating checkout secure stream for ${plan.toUpperCase()}...`, 'info');
       try {
         const res = await fetch('/api/stripe/create-checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan, email: user.email })
-        });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ plan, email: user.email })
+});
         const data = await res.json();
         if (data.url) {
           // In AI Studio / Cloud Run container environment, we do a direct navigation 
@@ -669,10 +669,10 @@ const handleCancelSubscription = async () => {
   triggerToast('Redirecting to Stripe Customer Portal...', 'info');
   try {
     const res = await fetch('/api/stripe/portal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-id': user.id },
-      body: JSON.stringify({ userId: user.id })
-    });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ userId: user.id })
+});
     const data = await res.json();
     if (data.url) {
       window.location.href = data.url;

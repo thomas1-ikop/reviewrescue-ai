@@ -15,7 +15,7 @@ import {
   Check,
 } from 'lucide-react';
 import type { AutoSendSectionProps, ParsedCustomer, ScheduledCustomer } from './sms.types';
-
+import { getAuthHeaders } from '../lib/api';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDateDisplay(iso: string): string {
@@ -123,13 +123,10 @@ const ControlsStatsBlock: React.FC<ControlsStatsBlockProps> = ({
       setIsTogglingOrDelaying(true);
       try {
         const res = await fetch('/api/sms/auto-send/toggle', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId,
-          },
-          body: JSON.stringify({ enabled, sendDelay: delay }),
-        });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ enabled, sendDelay: delay }),
+});
         if (!res.ok) throw new Error('Failed to update settings');
       } catch (err: unknown) {
         toast(err instanceof Error ? err.message : 'Could not save setting', 'error');
@@ -281,10 +278,7 @@ const CustomerImporterBlock: React.FC<CustomerImporterBlockProps> = ({
     try {
       const res = await fetch('/api/sms/parse-customers', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ rawText }),
       });
       if (!res.ok) throw new Error('Parsing failed');
@@ -311,10 +305,7 @@ const CustomerImporterBlock: React.FC<CustomerImporterBlockProps> = ({
       }));
       const res = await fetch('/api/sms/schedule-customers', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-id': userId,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ customers }),
       });
       if (!res.ok) throw new Error('Scheduling failed');
@@ -582,7 +573,7 @@ const ScheduledCustomersBlock: React.FC<ScheduledCustomersBlockProps> = ({
     try {
       const res = await fetch(`/api/sms/scheduled-customers/${id}`, {
         method: 'DELETE',
-        headers: { 'x-user-id': userId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Delete failed');
       setScheduledCustomers(scheduledCustomers.filter((c) => c.id !== id));
@@ -600,7 +591,7 @@ const ScheduledCustomersBlock: React.FC<ScheduledCustomersBlockProps> = ({
     try {
       const res = await fetch('/api/sms/scheduled-customers/clear', {
         method: 'DELETE',
-        headers: { 'x-user-id': userId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -767,7 +758,7 @@ const AutoSendSection: React.FC<AutoSendSectionProps> = ({
     try {
       const res = await fetch('/api/sms/scheduled-customers/clear', {
         method: 'DELETE',
-        headers: { 'x-user-id': userId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) {
         const data = await res.json();

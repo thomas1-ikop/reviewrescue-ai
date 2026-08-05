@@ -1,6 +1,7 @@
   // src/components/ManualSendSection.tsx
   import React, { useState, useCallback } from 'react';
   import { Send, Loader2 } from 'lucide-react';
+  import { getAuthHeaders } from '../lib/api';
   import type { ManualSendSectionProps } from './sms.types';
 
   const ManualSendSection: React.FC<ManualSendSectionProps> = ({ userId, toast }) => {
@@ -17,13 +18,10 @@
       setIsSending(true);
       try {
         const res = await fetch('/api/sms/send-invite', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-id': userId,
-          },
-          body: JSON.stringify({ customerName, phoneNumber }),
-        });
+  method: 'POST',
+  headers: getAuthHeaders(),
+  body: JSON.stringify({ customerName, phoneNumber }),
+});
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({ message: 'Unknown error' }));
