@@ -3101,6 +3101,7 @@ app.post('/api/stripe/create-checkout', async (req, res) => {
       client_reference_id: userId,
       customer_email: email,
       metadata: { userId, plan },
+      allow_promotion_codes: true,
     });
 
     res.json({ url: session.url, simulated: false });
