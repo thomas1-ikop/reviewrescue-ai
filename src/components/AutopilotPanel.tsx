@@ -282,6 +282,8 @@ const handleDisconnectConfirm = async () => {
         await fetchStatsAndLogs();
       } else {
         console.error('Force synchronization endpoint failed');
+        // ✅ ADD THIS:
+  toast('Sync failed. Please try again or reconnect your Google account.', 'error');
       }
     } catch (err) {
       console.error('Could not sync autopilot reviews:', err);

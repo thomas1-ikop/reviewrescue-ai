@@ -106,7 +106,7 @@ export default function PrivacyPolicy() {
               <li><strong>Opt-Out</strong> – opt out of marketing communications</li>
             </ul>
             <p>
-              To exercise any of these rights, please contact us at <strong>contact.rescuereview@gmail.com</strong>.
+              To exercise any of these rights, please contact us at <strong>contact@rewakely.com</strong>.
             </p>
 
             <h2 className="text-lg font-bold text-slate-900 mt-6">8. California Privacy Rights (CCPA)</h2>
@@ -154,9 +154,15 @@ export default function PrivacyPolicy() {
   All SMS messages sent through Rewakely include instructions for recipients to opt out by replying "STOP." We respect all opt-out requests and will not send further messages to opted-out numbers.
 </p>
 
+<h2 className="text-lg font-bold text-slate-900 mt-6">Cookies</h2>
+<p>
+  We use cookies to improve your experience. For more information, please see our{' '}
+  <a href="/cookie-policy" className="text-blue-600 hover:underline">Cookie Policy</a>.
+</p>
+
    <h2 className="text-lg font-bold text-slate-900 mt-6">11. Contact Us</h2>
             <p>
-              If you have any questions about this Privacy Policy, please contact us at <strong>contact.rescuereview@gmail.com</strong>.
+              If you have any questions about this Privacy Policy, please contact us at <strong>contact@rewakely.com</strong>.
             </p>
 
           </div>

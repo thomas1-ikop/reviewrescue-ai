@@ -5,7 +5,9 @@
 
   import { Calendar } from 'lucide-react';
   import {  User, CreditCard } from 'lucide-react';
-
+  import CookieBanner from './components/CookieBanner';
+  import CookiePolicy from './components/CookiePolicy';
+import { loadAnalytics } from './lib/analytics';
 import {
   loadPersistedUserSession,
   persistUserSession,
@@ -227,7 +229,13 @@ const navigateTo = (route: string) => {
     window.addEventListener('upgradeToPremium', handler);
     return () => window.removeEventListener('upgradeToPremium', handler);
   }, []);
-
+useEffect(() => {
+  // Check if user already gave consent
+  const consent = localStorage.getItem('cookieConsent');
+  if (consent === 'accepted') {
+    loadAnalytics();
+  }
+}, []);
   // In App.tsx, add this useEffect (one time, anywhere)
 useEffect(() => {
   const handler = (event: any) => {
@@ -835,6 +843,9 @@ const handleCancelSubscription = async () => {
   }
   if (currentRoute === 'about') {
   return <AboutView setCurrentRoute={navigateTo} />;
+}
+if (currentRoute === 'cookie-policy') {
+  return <CookiePolicy />;
 }
 
 
@@ -1529,6 +1540,10 @@ const handleCancelSubscription = async () => {
           <div className="flex gap-6">
             <button onClick={() => navigateTo('privacy')} className="hover:text-slate-900 transition">Privacy Policy</button>
 <button onClick={() => navigateTo('terms')} className="hover:text-slate-900 transition">Terms of Service</button>
+{/* ✅ ADD THIS */}
+<button onClick={() => navigateTo('cookie-policy')} className="hover:text-slate-900 transition">
+  Cookie Policy
+</button>
             <button 
   onClick={() => navigateTo('about')} 
   className="hover:text-slate-900 transition"
@@ -1963,7 +1978,8 @@ const handleCancelSubscription = async () => {
     <p>Loading dashboard...</p>
   </div>
 )}
-
+{/* ✅ CHANGE THIS */}
+<CookieBanner navigate={navigateTo} />
 
       </div>
     );
