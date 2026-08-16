@@ -27,17 +27,23 @@ export default function PrivacyPolicy() {
 
         <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-12 shadow-sm">
           <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Privacy Policy</h1>
-          <p className="text-sm text-slate-500 mb-8">Last Updated: June 16, 2026</p>
+          <p className="text-sm text-slate-500 mb-8">Last Updated: August 2026</p>
 
           <div className="prose prose-slate max-w-none space-y-6 text-sm text-slate-700 leading-relaxed">
+            
+            {/* ─── SECTION 1: INTRODUCTION (UPDATED) ──────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">1. Introduction</h2>
             <p>
-              Rewakely ("we," "our," or "us") respects your privacy and is committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our software-as-a-service platform (the "Service").
+              Rewakely ("we," "our," or "us") is operated by <strong>[Your Dad's Full Name]</strong>, a US-based entity. We respect your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our software-as-a-service platform (the "Service").
             </p>
             <p>
               By using our Service, you agree to the collection and use of information in accordance with this Privacy Policy.
             </p>
+            <p className="text-xs text-slate-500">
+              <strong>Data Controller:</strong> [Your Dad's Full Name] (contact@rewakely.com). Our servers are hosted in the EU (Supabase) to ensure compliance with GDPR, though payment data is processed in the US via Stripe under Standard Contractual Clauses (SCCs).
+            </p>
 
+            {/* ─── SECTION 2 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">2. Information We Collect</h2>
             <h3 className="font-semibold text-slate-900">2.1 Information You Provide to Us</h3>
             <p>When you create an account and use our Service, we collect:</p>
@@ -58,6 +64,7 @@ export default function PrivacyPolicy() {
               <li><strong>Cookies:</strong> Session cookies to keep you logged in</li>
             </ul>
 
+            {/* ─── SECTION 3 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">3. How We Use Your Information</h2>
             <p>We use your information to:</p>
             <ul className="list-disc pl-6 space-y-1">
@@ -70,17 +77,22 @@ export default function PrivacyPolicy() {
               <li>Comply with legal obligations</li>
             </ul>
 
+            {/* ─── SECTION 4: SHARING (UPDATED) ────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">4. Sharing Your Information</h2>
             <p>We may share your information with third-party service providers who assist us in operating our Service:</p>
             <ul className="list-disc pl-6 space-y-1">
-              <li><strong>Supabase</strong> – database and authentication</li>
-              <li><strong>Stripe</strong> – payment processing</li>
+              <li><strong>Supabase</strong> – database and authentication (EU servers)</li>
+              <li><strong>Stripe</strong> – payment processing (US servers, covered by EU-US Standard Contractual Clauses)</li>
               <li><strong>Resend</strong> – email delivery</li>
               <li><strong>Twilio / SignalHouse</strong> – SMS delivery</li>
               <li><strong>Google</strong> – Google Business Profile API integration (for auto-reply feature)</li>
             </ul>
-            <p>These third parties have access to your personal information only to perform specific tasks on our behalf and are obligated not to disclose or use it for any other purpose.</p>
+            <p>
+              These third parties have access to your personal information only to perform specific tasks on our behalf and are obligated not to disclose or use it for any other purpose. 
+              <span className="block text-xs text-slate-500 mt-1">* Data transfers to the US are safeguarded by Standard Contractual Clauses (SCCs) as approved by the European Commission.</span>
+            </p>
 
+            {/* ─── SECTION 5 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">5. Data Retention</h2>
             <p>We retain your personal information only for as long as necessary to fulfill the purposes outlined in this Privacy Policy:</p>
             <ul className="list-disc pl-6 space-y-1">
@@ -90,11 +102,13 @@ export default function PrivacyPolicy() {
             </ul>
             <p>You may request deletion of your data at any time by contacting us.</p>
 
+            {/* ─── SECTION 6 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">6. Data Security</h2>
             <p>
               We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security.
             </p>
 
+            {/* ─── SECTION 7 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">7. Your Rights</h2>
             <p>Depending on your location, you may have the following rights regarding your personal information:</p>
             <ul className="list-disc pl-6 space-y-1">
@@ -109,6 +123,7 @@ export default function PrivacyPolicy() {
               To exercise any of these rights, please contact us at <strong>contact@rewakely.com</strong>.
             </p>
 
+            {/* ─── SECTION 8 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">8. California Privacy Rights (CCPA)</h2>
             <p>If you are a California resident, you have the right to:</p>
             <ul className="list-disc pl-6 space-y-1">
@@ -118,51 +133,50 @@ export default function PrivacyPolicy() {
               <li>Not be discriminated against for exercising your rights</li>
             </ul>
 
+            {/* ─── SECTION 9 ────────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">9. Children's Privacy</h2>
             <p>
               Our Service is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13. If you become aware that a child has provided us with personal information, please contact us.
             </p>
 
+            {/* ─── SECTION 10 ───────────────────────────────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">10. Changes to This Privacy Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.
             </p>
 
-         
-
-<h2 className="text-lg font-bold text-slate-900 mt-6">12. SMS Communications</h2>
-
-<p>
-  When you use Rewakely to send SMS review invites to your customers, we process phone numbers solely for the purpose of delivering those invitations.
-</p>
-
-<h3 className="font-semibold text-slate-900 mt-4">What We Do With Phone Numbers:</h3>
-<ul className="list-disc pl-6 space-y-1">
-  <li><strong>Usage:</strong> Phone numbers are used exclusively to send SMS review invitations on your behalf.</li>
-  <li><strong>Sharing:</strong> We do not share, sell, or rent phone numbers to third parties.</li>
-  <li><strong>Storage:</strong> Phone numbers are stored securely and encrypted.</li>
-  <li><strong>Retention:</strong> Phone numbers are retained only as long as necessary to deliver the SMS service and for compliance purposes.</li>
-</ul>
-
-<h3 className="font-semibold text-slate-900 mt-4">Your Responsibility:</h3>
-<p>
-  You are responsible for obtaining proper consent from your customers before sending SMS messages through Rewakely. We recommend including an opt-in checkbox on your customer intake forms and providing clear opt-out instructions in all SMS communications.
-</p>
-
-<h3 className="font-semibold text-slate-900 mt-4">Opt-Out:</h3>
-<p>
-  All SMS messages sent through Rewakely include instructions for recipients to opt out by replying "STOP." We respect all opt-out requests and will not send further messages to opted-out numbers.
-</p>
-
-<h2 className="text-lg font-bold text-slate-900 mt-6">Cookies</h2>
-<p>
-  We use cookies to improve your experience. For more information, please see our{' '}
-  <a href="/cookie-policy" className="text-blue-600 hover:underline">Cookie Policy</a>.
-</p>
-
-   <h2 className="text-lg font-bold text-slate-900 mt-6">11. Contact Us</h2>
+            {/* ─── SECTION 11 (MOVED UP) ────────────────────────────── */}
+            <h2 className="text-lg font-bold text-slate-900 mt-6">11. Contact Us</h2>
             <p>
               If you have any questions about this Privacy Policy, please contact us at <strong>contact@rewakely.com</strong>.
+            </p>
+
+            {/* ─── SECTION 12 (was 11, now 12) ────────────────────── */}
+            <h2 className="text-lg font-bold text-slate-900 mt-6">12. SMS Communications</h2>
+            <p>
+              When you use Rewakely to send SMS review invites to your customers, we process phone numbers solely for the purpose of delivering those invitations.
+            </p>
+            <h3 className="font-semibold text-slate-900 mt-4">What We Do With Phone Numbers:</h3>
+            <ul className="list-disc pl-6 space-y-1">
+              <li><strong>Usage:</strong> Phone numbers are used exclusively to send SMS review invitations on your behalf.</li>
+              <li><strong>Sharing:</strong> We do not share, sell, or rent phone numbers to third parties.</li>
+              <li><strong>Storage:</strong> Phone numbers are stored securely and encrypted.</li>
+              <li><strong>Retention:</strong> Phone numbers are retained only as long as necessary to deliver the SMS service and for compliance purposes.</li>
+            </ul>
+            <h3 className="font-semibold text-slate-900 mt-4">Your Responsibility:</h3>
+            <p>
+              You are responsible for obtaining proper consent from your customers before sending SMS messages through Rewakely. We recommend including an opt-in checkbox on your customer intake forms and providing clear opt-out instructions in all SMS communications.
+            </p>
+            <h3 className="font-semibold text-slate-900 mt-4">Opt-Out:</h3>
+            <p>
+              All SMS messages sent through Rewakely include instructions for recipients to opt out by replying "STOP." We respect all opt-out requests and will not send further messages to opted-out numbers.
+            </p>
+
+            {/* ─── COOKIES SECTION (REFERENCE) ────────────────────── */}
+            <h2 className="text-lg font-bold text-slate-900 mt-6">Cookies</h2>
+            <p>
+              We use cookies to improve your experience. For more information, please see our{' '}
+              <a href="/cookie-policy" className="text-blue-600 hover:underline">Cookie Policy</a>.
             </p>
 
           </div>
