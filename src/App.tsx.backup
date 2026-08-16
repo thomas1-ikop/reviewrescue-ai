@@ -6,10 +6,10 @@
   import { Calendar } from 'lucide-react';
   import {  User, CreditCard } from 'lucide-react';
   import CookieBanner from './components/CookieBanner';
-   
+  import { detectLanguage, setLanguage, Language } from './lib/language';
   import CookiePolicy from './components/CookiePolicy';
 import { loadAnalytics } from './lib/analytics';
-
+import { t } from './lib/translations';
 import {
   loadPersistedUserSession,
   persistUserSession,
@@ -97,7 +97,7 @@ const navigateTo = (route: string) => {
 
     const [showSmsTour, setShowSmsTour] = useState(false);
 
-     
+    const [language, setLanguageState] = useState<Language>(() => detectLanguage());
 
     const [showWaitlist, setShowWaitlist] = useState(false);
 
@@ -240,7 +240,29 @@ useEffect(() => {
     loadAnalytics();
   }
 }, []);
+useEffect(() => {
+  // If user already manually selected a language, don't override
+  if (localStorage.getItem('preferredLanguage')) {
+    return;
+  }
 
+  // Fetch user's country from IP
+  const detectCountry = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      if (data.country_code === 'IT') {
+        setLanguageState('it');
+        localStorage.setItem('preferredLanguage', 'it');
+      }
+    } catch (err) {
+      // If IP detection fails, fallback to browser language (already handled in detectLanguage)
+      console.log('IP detection failed, using browser language');
+    }
+  };
+  
+  detectCountry();
+}, []);
   // In App.tsx, add this useEffect (one time, anywhere)
 useEffect(() => {
   const handler = (event: any) => {
@@ -1043,7 +1065,7 @@ if (currentRoute === 'cookie-policy') {
   ) : (
     <>
       <a href="https://calendly.com/rewakely/15min" className="hover:text-slate-900 transition">
-        Book a Meeting
+        {t(language, 'heroBook')}
       </a>
       <button onClick={() => setCurrentRoute('signin')} className="hover:text-slate-900 transition">Login</button>
       <button onClick={() => navigateTo('signup')} className="rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-4.5 py-2 transition shadow-sm">
@@ -1106,7 +1128,7 @@ if (currentRoute === 'cookie-policy') {
     className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200/50 relative z-10"
   >
     <Sparkles size={14} className="animate-pulse text-blue-500" />
-    AI-Powered Reputation Management
+    {t(language, 'heroBadge')}
   </motion.div>
 
   {/* Headline */}
@@ -1170,7 +1192,7 @@ if (currentRoute === 'cookie-policy') {
   ) : (
     <>
       <button onClick={() => navigateTo('signup')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
-        Get Started
+        {t(language, 'heroCta')}
         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
       </button>
       <button
@@ -1178,11 +1200,11 @@ if (currentRoute === 'cookie-policy') {
         className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
       >
         <PlayCircle size={16} />
-        Watch Demo
+        {t(language, 'heroDemo')}
       </button>
       <a href="https://calendly.com/rewakely/15min" className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2">
         <Calendar size={16} />
-        Book a Meeting
+        {t(language, 'heroBook')}
       </a>
     </>
   )}
