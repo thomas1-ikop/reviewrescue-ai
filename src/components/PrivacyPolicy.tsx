@@ -34,13 +34,13 @@ export default function PrivacyPolicy() {
             {/* ─── SECTION 1: INTRODUCTION (UPDATED) ──────────────── */}
             <h2 className="text-lg font-bold text-slate-900 mt-6">1. Introduction</h2>
             <p>
-              Rewakely ("we," "our," or "us") is operated by <strong>[Your Dad's Full Name]</strong>, a US-based entity. We respect your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our software-as-a-service platform (the "Service").
+              Rewakely ("we," "our," or "us") is operated by <strong>Paolo Giuressi</strong>, a US-based entity. We respect your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our software-as-a-service platform (the "Service").
             </p>
             <p>
               By using our Service, you agree to the collection and use of information in accordance with this Privacy Policy.
             </p>
             <p className="text-xs text-slate-500">
-              <strong>Data Controller:</strong> [Your Dad's Full Name] (contact@rewakely.com). Our servers are hosted in the EU (Supabase) to ensure compliance with GDPR, though payment data is processed in the US via Stripe under Standard Contractual Clauses (SCCs).
+              <strong>Data Controller:</strong> Paolo Giuressi (contact@rewakely.com). Our servers are hosted in the EU (Supabase) to ensure compliance with GDPR, though payment data is processed in the US via Stripe under Standard Contractual Clauses (SCCs).
             </p>
 
             {/* ─── SECTION 2 ────────────────────────────────────────── */}
