@@ -59,8 +59,8 @@ export default function CookiePolicy() {
             <h2 className="text-lg font-bold text-slate-900 mt-6">Contact Us</h2>
             <p>
               If you have any questions about this Cookie Policy, please contact us at{' '}
-              <a href="mailto:contact.rescuereview@gmail.com" className="text-blue-600 hover:underline">
-                contact.rescuereview@gmail.com
+              <a href="mailto:contact@rewakely.com" className="text-blue-600 hover:underline">
+                contact@rewakely.com
               </a>
               .
             </p>

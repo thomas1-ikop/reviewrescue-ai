@@ -55,21 +55,20 @@ export default function CookieBanner({ navigate }: CookieBannerProps) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
-          <button
-            onClick={declineCookies}
-            className="flex-1 md:flex-none px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
-          >
-            Decline
-          </button>
-          <button
-            onClick={acceptCookies}
-            className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition shadow-sm shadow-blue-600/20"
-          >
-            <Check className="w-4 h-4" />
-            Accept All
-          </button>
-        </div>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+  <button
+    onClick={declineCookies}
+    className="flex-1 md:flex-none px-6 py-2.5 border-2 border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
+  >
+    Reject All
+  </button>
+  <button
+    onClick={acceptCookies}
+    className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition"
+  >
+    Accept All
+  </button>
+</div>  
       </div>
     </div>
   );
