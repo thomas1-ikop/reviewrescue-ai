@@ -1106,7 +1106,7 @@ if (currentRoute === 'cookie-policy') {
     className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200/50 relative z-10"
   >
     <Sparkles size={14} className="animate-pulse text-blue-500" />
-    AI-Powered Reputation Management
+    For Local Business Owners
   </motion.div>
 
   {/* Headline */}
@@ -1116,16 +1116,16 @@ if (currentRoute === 'cookie-policy') {
     transition={{ duration: 0.8, delay: 0.2 }}
     className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.08] max-w-4xl mx-auto mt-4 relative z-10"
   >
-    Rewakely – Turn Every Review Into a{' '}
-    <span className="text-blue-600 relative">
-      5-Star Business Rating
-      <motion.span
-        initial={{ width: 0 }}
-        animate={{ width: '100%' }}
-        transition={{ duration: 1, delay: 1 }}
-        className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
-      />
-    </span>
+    Fix your Google reviews and{' '}
+<span className="text-blue-600 relative">
+  get more calls
+  <motion.span
+    initial={{ width: 0 }}
+    animate={{ width: '100%' }}
+    transition={{ duration: 1, delay: 1 }}
+    className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+  />
+</span>
   </motion.h1>
 
   {/* Sub-headline */}
@@ -1135,8 +1135,7 @@ if (currentRoute === 'cookie-policy') {
     transition={{ duration: 0.6, delay: 0.5 }}
     className="text-md md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed mt-4 relative z-10"
   >
-    Automate replies, send review invites, and auto-reply to Google – all in{' '}
-    <span className="font-bold text-blue-600">5 minutes</span>.
+    Stop losing calls to bad reviews — without spending hours replying.
   </motion.p>
 
   {/* Live Counter */}
@@ -1151,7 +1150,7 @@ if (currentRoute === 'cookie-policy') {
       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
     </span>
     <span className="text-sm font-medium text-slate-600">
-      <span className="font-extrabold text-emerald-600">AI-powered</span> replies in seconds
+      <span className="font-extrabold text-emerald-600">2-second</span> AI replies
     </span>
   </motion.div>
 
@@ -1160,7 +1159,7 @@ if (currentRoute === 'cookie-policy') {
   initial={{ opacity: 0, y: 20 }}
   animate={{ opacity: 1, y: 0 }}
   transition={{ duration: 0.6, delay: 0.6 }}
-  className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10"
+  className="pt-6 flex flex-col items-center gap-4 relative z-10"
 >
   {user ? (
     <button onClick={() => navigateTo('dashboard')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
@@ -1169,21 +1168,42 @@ if (currentRoute === 'cookie-policy') {
     </button>
   ) : (
     <>
-      <button onClick={() => navigateTo('signup')} className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]">
-        Get Started
-        <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-      </button>
-      <button
-        onClick={() => setCurrentRoute('demo')}
-        className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2"
-      >
-        <PlayCircle size={16} />
-        Watch Demo
-      </button>
-      <a href="https://calendly.com/rewakely/15min" className="w-full sm:w-auto rounded-xl border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-semibold text-sm px-8 py-4 text-center hover:bg-blue-50/50 transition flex items-center justify-center gap-2">
-        <Calendar size={16} />
-        Book a Meeting
-      </a>
+      {/* PRIMARY CTA - ONE BIG BLUE BUTTON */}
+      <a 
+  href="https://calendly.com/rewakely/15min" 
+  target="_blank" 
+  rel="noopener noreferrer"
+  className="w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm px-8 py-4 shadow-xl shadow-blue-600/25 flex items-center justify-center gap-2 group transition-all hover:scale-[1.02] active:scale-[0.98]"
+>
+  Book My Free Audit 🔍
+  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+</a>
+      
+      {/* SECONDARY - Text links (NOT buttons) */}
+      <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
+        <button 
+          onClick={() => setCurrentRoute('demo')} 
+          className="hover:text-slate-700 underline transition"
+        >
+          Watch demo video
+        </button>
+        <span className="text-slate-300">·</span>
+        <a 
+          href="https://calendly.com/rewakely/15min" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="hover:text-slate-700 underline transition"
+        >
+          Book a call
+        </a>
+        <span className="text-slate-300">·</span>
+        <span className="text-slate-400">No credit card needed</span>
+      </div>
+      
+      {/* RISK REVERSAL - Builds trust */}
+      <p className="text-xs text-slate-400 mt-1">
+        Cancel anytime. No questions asked.
+      </p>
     </>
   )}
 </motion.div>
