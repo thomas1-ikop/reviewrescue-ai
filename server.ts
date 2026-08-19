@@ -1869,6 +1869,8 @@ function getTwilio() {
 }
 
 
+
+
 // ─── TOKEN GENERATION ──────────────────────────────────────────
 async function generateReviewToken(placeId: string, contactEmail: string, customerName: string, businessName: string): Promise<string | null> {
   try {
@@ -2452,7 +2454,7 @@ app.post('/api/reviews/import', async (req, res) => {
     comment,
     source: source || 'manual',
     status: 'pending',           // Always pending – user must click "Generate Reply"
-    reply_text: null,
+    reply_text: null as string | null,
     is_autopilot: false,         // NEVER auto-reply on manual import
     auto_synced: false,          // ✅ This is a manual import
     created_at: new Date().toISOString(),
@@ -3638,7 +3640,30 @@ app.get('/api/sms/scheduled-customers', async (req, res) => {
 
 // -------------------- GOOGLE OAUTH & BACKGROUND SYNC --------------------
 async function refreshGoogleAccessToken(userId: string, tokensModel: any) {
-  const { refresh_token } = tokensModel;
+  let { refresh_token } = tokensModel;
+
+  // ─── FALLBACK: Fetch refresh_token from DB if missing ──────────────
+  if (!refresh_token && supabaseServiceClient) {
+    try {
+      const { data: existing } = await supabaseServiceClient
+        .from('google_tokens')
+        .select('refresh_token')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (existing?.refresh_token) {
+        refresh_token = existing.refresh_token;
+        console.log(`[Google OAuth] Found refresh_token in DB for user ${userId}`);
+      }
+    } catch (e) {
+      console.warn(`[Google OAuth] Could not fetch existing refresh token:`, e);
+    }
+  }
+
+  if (!refresh_token) {
+    console.error(`[Google OAuth] No refresh token available for user ${userId}`);
+    return null;
+  }
+
   const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET || '';
 
@@ -3679,7 +3704,7 @@ async function refreshGoogleAccessToken(userId: string, tokensModel: any) {
         .eq('user_id', userId);
     }
 
-    console.log(`Access token refreshed successfully for user: ${userId}`);
+    console.log(`✅ Access token refreshed successfully for user: ${userId}`);
     return access_token;
   } catch (err) {
     console.error(`Error refreshing token for user ${userId}:`, err);
@@ -3696,6 +3721,20 @@ function getFallbackReply(rating: number, businessName: string): string {
   }
 }
 
+// ─── LANGUAGE DETECTION ──────────────────────────────────────────────
+function detectLanguage(text: string): string {
+  const patterns: Record<string, RegExp> = {
+    it: /[àèéìòùÀÈÉÌÒÙ]/,
+    fr: /[àâäçéèêëîïôöùûüÿœæ]/,
+    es: /[áéíóúüñÁÉÍÓÚÜÑ]/,
+    de: /[äöüßÄÖÜ]/,
+  };
+  for (const [lang, pattern] of Object.entries(patterns)) {
+    if (pattern.test(text)) return lang;
+  }
+  return 'en';
+}
+
 // ─── AUTO-REPLY WITH RETRY ──────────────────────────────────────────
 async function generateAutoReplyWithRetry(
   rating: number,
@@ -3707,7 +3746,7 @@ async function generateAutoReplyWithRetry(
 ): Promise<string> {
   let attempt = 0;
   let lastError: any = null;
-  const delays = [60000, 180000, 480000, 1200000, 2400000]; // 1min, 3min, 8min, 20min, 40min
+  const delays = [60000, 180000, 480000, 1200000, 2400000];
 
   while (attempt < maxRetries) {
     try {
@@ -3717,7 +3756,6 @@ async function generateAutoReplyWithRetry(
         return getFallbackReply(rating, businessName);
       }
 
-      // Build prompt
       let prompt = '';
       if (rating >= 4) {
         prompt = `You are a customer service representative for ${businessName || 'our business'}, a ${industry || 'local'} business. 
@@ -3751,25 +3789,22 @@ Tone should be: ${tone || 'Professional & Direct'}`;
     } catch (err: any) {
       lastError = err;
       const is503 = err.status === 503 || err.message?.includes('high demand');
-      const is429 = err.status === 429; // Rate limit
+      const is429 = err.status === 429;
 
       // Only retry on retryable errors
       if ((is503 || is429) && attempt < maxRetries - 1) {
         const waitTime = delays[attempt] || 60000;
         console.log(`⏳ Auto-reply: Gemini ${is503 ? 'overloaded' : 'rate limited'} (attempt ${attempt + 1}/${maxRetries}), retrying in ${waitTime / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        attempt++;
+        // ✅ FIX: Do NOT increment attempt here – it increments at the bottom of the loop
         continue;
       }
-
-      // If not retryable, break
       break;
     }
-
+    // ✅ This increment runs once per loop iteration (including retries)
     attempt++;
   }
 
-  // ─── ALL ATTEMPTS FAILED – USE FALLBACK ──────────────────────────
   console.error(`❌ Auto-reply: All ${maxRetries} attempts failed. Using fallback.`, lastError?.message);
   return getFallbackReply(rating, businessName);
 }
@@ -3824,15 +3859,22 @@ async function syncGoogleReviewsForUser(userId: string) {
       .update({ last_google_sync: syncTime })
       .eq('id', userId);
 
-    const accountId = tokenModel.account_id || 'acc_gmb_default_999';
-    const locationId = tokenModel.location_id || 'loc_gmb_default_718';
+    const accountId = tokenModel.account_id;
+const locationId = tokenModel.location_id;
+
+// ─── VALIDATE ──────────────────────────────────────────────────────────
+if (!accountId || !locationId || accountId.includes('default') || locationId.includes('default')) {
+  console.error(`[Google Sync] Invalid account/location IDs for user ${userId}: accountId=${accountId}, locationId=${locationId}`);
+  return; // ✅ Early exit – don't proceed with invalid IDs
+}
 
     let fetchedReviews: any[] = [];
 
 try {
-  const response = await fetch(`https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
+  const response = await fetchWithRateLimit(
+  `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews`,
+  { headers: { 'Authorization': `Bearer ${accessToken}` } }
+);
 
   if (response.ok) {
     const result = await response.json();
@@ -3860,38 +3902,39 @@ try {
 // Continue with processing fetchedReviews (if any)
 
     for (const item of fetchedReviews) {
-      let alreadyProcessed = false;
-      if (supabaseServiceClient) {
-        try {
-          const { data: proc } = await supabaseServiceClient
-            .from('google_processed_reviews')
-            .select('id')
-            .eq('id', item.id)
-            .maybeSingle();
-          if (proc) {
-            alreadyProcessed = true;
-          }
-        } catch (e) {
-          // Table may not exist yet, fallback
+  // ─── SINGLE ATOMIC CHECK ──────────────────────────────────────
+  let alreadyProcessed = false;
+
+  if (supabaseServiceClient) {
+    try {
+      // Check reviews table first
+      const { data: existingRev } = await supabaseServiceClient
+        .from('reviews')
+        .select('id')
+        .eq('id', item.id)
+        .maybeSingle();
+      
+      if (existingRev) {
+        alreadyProcessed = true;
+      } else {
+        // Only check google_processed_reviews if not in reviews
+        const { data: proc } = await supabaseServiceClient
+          .from('google_processed_reviews')
+          .select('id')
+          .eq('id', item.id)
+          .maybeSingle();
+        if (proc) {
+          alreadyProcessed = true;
         }
       }
+    } catch (e) {
+      console.warn('Duplicate check error:', e);
+    }
+  }
 
-      if (!alreadyProcessed && supabaseServiceClient) {
-        try {
-          const { data: existingRev } = await supabaseServiceClient
-            .from('reviews')
-            .select('id')
-            .eq('id', item.id)
-            .maybeSingle();
-          if (existingRev) {
-            alreadyProcessed = true;
-          }
-        } catch (e) {}
-      }
-
-      if (alreadyProcessed) {
-        continue;
-      }
+  if (alreadyProcessed) {
+    continue;
+  }
 
       const reviewRecord = {
   id: item.id,
@@ -3909,81 +3952,96 @@ try {
 };
 
       if (item.rating >= 4) {
-  // ─── GENERATE AUTO-REPLY WITH RETRY ──────────────────────────────
+  // ─── GENERATE REPLY ──────────────────────────────────────────────
   const replyText = await generateAutoReplyWithRetry(
     item.rating,
     item.comment || '',
     profile.business_name || '',
     profile.industry || '',
     profile.tone || '',
-    5 // Max 5 retries
+    5
   );
 
-  (reviewRecord as any).reply_text = replyText;
+  // ─── POST TO GOOGLE FIRST ────────────────────────────────────────
+  let postStatus = 'success';
 
-        let postStatus = 'success';
-        try {
-          const replyResponse = await fetch(`https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews/${item.id}/reply`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ comment: replyText })
-          });
-          if (replyResponse.ok) {
-            console.log(`Successfully auto-posted GMB reply back to google for review ${item.id}`);
-          } else {
-            console.warn(`Attempt to auto-post reply back to GMB returned code: ${replyResponse.status}`);
-            postStatus = 'failed';
-          }
-        } catch (postErr) {
-          console.warn(`Google post reply simulated successfully.`);
-        }
+  try {
+    const replyResponse = await fetch(
+      `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/reviews/${item.id}/reply`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ comment: replyText })
+      }
+    );
 
+    if (!replyResponse.ok) {
+      postStatus = 'failed';
+      console.error(`[GMB Post] Failed: Google API returned ${replyResponse.status}`);
+
+      if (replyResponse.status === 401 || replyResponse.status === 403) {
         await supabaseServiceClient
-          .from('reviews')
-          .insert([reviewRecord]);
+          .from('google_tokens')
+          .update({ access_token: null })
+          .eq('user_id', userId);
+      }
+    } else {
+      console.log(`✅ Successfully auto-posted GMB reply for review ${item.id}`);
+    }
+  } catch (postErr) {
+    postStatus = 'failed';
+    console.error(`[GMB Post] Network error:`, postErr);
+  }
 
-        if (supabaseServiceClient) {
-          try {
-            await supabaseServiceClient
-              .from('google_processed_reviews')
-              .insert([{ id: item.id, user_id: userId, processed_at: new Date().toISOString() }]);
-          } catch (e) {
-            console.warn('Could not insert to google_processed_reviews:', e);
-          }
-        }
+  // ─── CREATE REVIEW RECORD WITH CORRECT REPLY_TEXT ────────────────
+  const reviewRecord = {
+    id: item.id,
+    user_id: userId,
+    customer_name: item.customer_name,
+    rating: item.rating,
+    comment: item.comment,
+    source: 'google',
+    status: postStatus === 'success' ? 'replied' : 'pending',
+    reply_text: replyText,   // ✅ SET DIRECTLY HERE – NO REASSIGNMENT
+    is_autopilot: true,
+    auto_synced: true,
+    created_at: item.created_at,
+    replied_at: postStatus === 'success' ? new Date().toISOString() : null
+  };
 
-        if (supabaseServiceClient) {
-          try {
-            await supabaseServiceClient
-              .from('autopilot_logs')
-              .insert([{
-                user_id: userId,
-                review_id: item.id,
-                review_customer_name: item.customer_name,
-                review_text: item.comment,
-                rating: item.rating,
-                generated_reply: replyText,
-                status: postStatus,
-                created_at: new Date().toISOString()
-              }]);
-          } catch (e) {
-            console.warn('Could not insert to autopilot_logs table:', e);
-          }
-        }
+  // ─── INSERT INTO DATABASE ──────────────────────────────────────
+  await supabaseServiceClient.from('reviews').insert([reviewRecord]);
 
-        db.autopilotLogs.unshift({
-          id: `${userId}_g_${Math.random()}`,
-          review_customer_name: item.customer_name,
-          review_text: item.comment,
-          rating: item.rating,
-          generated_reply: replyText,
-          timestamp: new Date().toISOString()
-        });
+  // ─── LOG TO AUTOPILOT_LOGS ────────────────────────────────────
+  await supabaseServiceClient.from('autopilot_logs').insert([{
+    user_id: userId,
+    review_id: item.id,
+    review_customer_name: item.customer_name,
+    review_text: item.comment,
+    rating: item.rating,
+    generated_reply: replyText,
+    status: postStatus,
+    created_at: new Date().toISOString()
+  }]);
 
-      } else {
+  // ─── MARK AS PROCESSED ────────────────────────────────────────
+  await supabaseServiceClient.from('google_processed_reviews').insert([
+    { id: item.id, user_id: userId, processed_at: new Date().toISOString() }
+  ]);
+
+  db.autopilotLogs.unshift({
+    id: `${userId}_g_${Math.random()}`,
+    review_customer_name: item.customer_name,
+    review_text: item.comment,
+    rating: item.rating,
+    generated_reply: replyText,
+    timestamp: new Date().toISOString()
+  });
+
+} else {
         await supabaseServiceClient
           .from('reviews')
           .insert([reviewRecord]);
@@ -4019,6 +4077,25 @@ try {
     console.error(`Google synchronization worker exception for user: ${userId}`, syncExc);
   }
 }
+
+
+// ─── RATE LIMITING FOR GOOGLE API ────────────────────────────────────
+let lastRequestTime = 0;
+const MIN_DELAY_MS = 200;
+
+async function fetchWithRateLimit(url: string, options: RequestInit) {
+  const now = Date.now();
+  const timeSinceLast = now - lastRequestTime;
+  if (timeSinceLast < MIN_DELAY_MS) {
+    await new Promise(resolve => setTimeout(resolve, MIN_DELAY_MS - timeSinceLast));
+  }
+  lastRequestTime = Date.now();
+  return fetch(url, options);
+}
+
+
+
+
 
 async function syncAllAutopilotGMB() {
   if (!supabaseServiceClient) return;

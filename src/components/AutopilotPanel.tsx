@@ -269,24 +269,25 @@ const handleDisconnectConfirm = async () => {
     setIsSyncing(true);
     try {
       const res = await apiFetch('/api/autopilot/sync', {
-  method: 'POST',
-  body: JSON.stringify({})
-});
+        method: 'POST',
+        body: JSON.stringify({})
+      });
 
       if (res.ok) {
         const data = await res.json();
         if (data.lastGoogleSync) {
           setLastSync(data.lastGoogleSync);
         }
-        // Force refresh recent reviews logs & stats count
         await fetchStatsAndLogs();
+        toast('✅ Sync completed successfully!', 'success');
       } else {
         console.error('Force synchronization endpoint failed');
-        // ✅ ADD THIS:
-  toast('Sync failed. Please try again or reconnect your Google account.', 'error');
+        toast('Sync failed. Please try again or reconnect your Google account.', 'error');
       }
     } catch (err) {
       console.error('Could not sync autopilot reviews:', err);
+      // ✅ THIS IS THE FIX – ADD THE TOAST HERE
+      toast('Sync failed. Please try again or reconnect your Google account.', 'error');
     } finally {
       setIsSyncing(false);
     }
