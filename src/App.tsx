@@ -8,6 +8,7 @@
   import CookieBanner from './components/CookieBanner';
    
   import CookiePolicy from './components/CookiePolicy';
+  import AIReceptionistLanding from './components/AIReceptionistLanding';
 import { loadAnalytics } from './lib/analytics';
 
 import {
@@ -852,6 +853,9 @@ const handleCancelSubscription = async () => {
 if (currentRoute === 'cookie-policy') {
   return <CookiePolicy />;
 }
+if (currentRoute === 'ai-receptionist') {
+  return <AIReceptionistLanding />;
+}
 
 
     return (
@@ -1024,6 +1028,13 @@ if (currentRoute === 'cookie-policy') {
   >
     Contact
   </button>
+  {/* ✅ ADD THIS NEW BUTTON HERE */}
+  <button
+    onClick={() => navigateTo('ai-receptionist')}
+    className="hover:text-slate-900 transition text-sm font-semibold text-slate-600"
+  >
+    AI Receptionist
+  </button>
   <button 
   onClick={() => navigateTo('about')} 
   className="hover:text-slate-900 transition text-sm font-semibold text-slate-600"
@@ -1070,7 +1081,14 @@ if (currentRoute === 'cookie-policy') {
     <button onClick={() => { setMobileMenuOpen(false); setShowContactModal(true); }} className="text-left hover:text-slate-900 transition font-sans" id="landing-nav-contact-mobile">
       Contact
     </button>
-    // ✅ Fix Mobile Menu Links
+    {/* ✅ ADD THIS */}
+    <button 
+      onClick={() => { setMobileMenuOpen(false); navigateTo('ai-receptionist'); }} 
+      className="text-left hover:text-slate-900 transition text-sm font-bold text-slate-600 py-2"
+    >
+      AI Receptionist
+    </button>
+    // ✅ Fix Mobile Menu Linksm
 <button 
   onClick={() => { setMobileMenuOpen(false); navigateTo('about'); }} 
   className="text-left hover:text-slate-900 transition text-sm font-bold text-slate-600 py-2"
