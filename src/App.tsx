@@ -230,6 +230,14 @@ const navigateTo = (route: string) => {
   }, []);
 
   useEffect(() => {
+  // Check the URL path on load
+  const path = window.location.pathname;
+  if (path === '/ai-receptionist') {
+    setCurrentRoute('ai-receptionist');
+  }
+}, []);
+
+  useEffect(() => {
     const handler = () => setShowWaitlist(true);
     window.addEventListener('upgradeToPremium', handler);
     return () => window.removeEventListener('upgradeToPremium', handler);
